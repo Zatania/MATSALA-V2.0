@@ -166,9 +166,6 @@ AUTH_PASSWORD_VALIDATORS = [
 # Enable i18n and set the list of supported languages
 LANGUAGES = [
     ("en", _("English")),
-    ("fr", _("French")),
-    ("ar", _("Arabic")),
-    ("de", _("German")),
     # Add more languages as needed
 ]
 
@@ -178,7 +175,7 @@ LANGUAGE_CODE = "en"
 
 TIME_ZONE = "UTC"
 
-USE_I18N = True
+USE_I18N = False
 
 USE_TZ = True
 

@@ -14,7 +14,7 @@ TEMPLATE_CONFIG = {
     "rtl_support": False,              # options[Boolean]: True(default), False # To provide RTLSupport or not
     "rtl_mode": False,                # options[Boolean]: False(default), True # To set layout to RTL layout  (myRTLSupport must be True for rtl mode)
     "has_customizer": True,           # options[Boolean]: True(default), False # Display customizer or not THIS WILL REMOVE INCLUDED JS FILE. SO LOCAL STORAGE WON'T WORK
-    "display_customizer": True,       # options[Boolean]: True(default), False # Display customizer UI or not, THIS WON'T REMOVE INCLUDED JS FILE. SO LOCAL STORAGE WILL WORK
+    "display_customizer": False,       # options[Boolean]: True(default), False # Display customizer UI or not, THIS WON'T REMOVE INCLUDED JS FILE. SO LOCAL STORAGE WILL WORK
     "content_layout": "compact",      # options[String]: 'compact', 'wide' (compact=container-xxl, wide=container-fluid)
     "navbar_type": "fixed",           # options[String]: 'fixed', 'static', 'hidden' (Only for vertical Layout)
     "header_type": "fixed",           # options[String]: 'static', 'fixed' (for horizontal layout only)
@@ -37,28 +37,31 @@ TEMPLATE_CONFIG = {
 # Theme Variables
 # ? Personalize template by changing theme variables (For ex: Name, URL Version etc...)
 THEME_VARIABLES = {
-    "creator_name": "OmegaDion",
-    "creator_url": "https://pixinvent.com/",
+    "creator_name": "MATSALA v2.0",
+    "creator_url": "#",
+    "privacy_policy": "#",
+    "terms_conditions": "#",
+    "contact_us": "#",
     "template_name": "Materialize",
     "template_suffix": "Django Admin Template",
     "template_version": "2.0.0",
     "template_free": False,
     "template_description": "Materialize is a modern, clean and fully responsive admin template built with Bootstrap 5, Django, HTML, CSS, jQuery, and JavaScript. It has a huge collection of reusable UI components and integrated with the latest jQuery plugins. It can be used for all types of web applications like custom admin panel, project management system, admin dashboard, Backend application or CRM.",
     "template_keyword": "django, django admin, dashboard, bootstrap 5 dashboard, bootstrap 5 design, bootstrap 5",
-    "facebook_url": "https://www.facebook.com/pixinvents/",
-    "twitter_url": "https://twitter.com/pixinvents",
-    "github_url": "https://github.com/pixinvent",
-    "dribbble_url": "https://dribbble.com/pixinvent",
-    "instagram_url": "https://www.instagram.com/pixinvents/",
-    "license_url": "https://themeforest.net/licenses/standard",
-    "live_preview": "https://demos.pixinvent.com/materialize-html-django-admin-template/demo-1/",
-    "product_page": "https://1.envato.market/materialize_admin",
-    "support": "https://pixinvent.ticksy.com/",
-    "more_themes": "https://1.envato.market/pixinvent_portfolio",
-    "documentation": "https://demos.pixinvent.com/materialize-html-admin-template/documentation",
-    "changelog": "https://demos.pixinvent.com/vuexy/changelog.html",
-    "git_repository": "materialize-html-django-admin-template",
-    "git_repo_access": "https://tools.pixinvent.com/github/github-access",
+    "facebook_url": "#",
+    "twitter_url": "#",
+    "github_url": "#",
+    "dribbble_url": "#",
+    "instagram_url": "#",
+    "license_url": "#",
+    "live_preview": "#",
+    "product_page": "#",
+    "support": "#",
+    "more_themes": "#",
+    "documentation": "#n",
+    "changelog": "#",
+    "git_repository": "#",
+    "git_repo_access": "#",
 }
 
 # ! Don't change THEME_LAYOUT_DIR unless it's required
