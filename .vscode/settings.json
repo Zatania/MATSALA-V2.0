@@ -41,7 +41,7 @@
   "prettier.configPath": ".prettierrc.json",
   "prettier.ignorePath": ".prettierignore",
   "[html]": {
-    "editor.defaultFormatter": "HookyQR.beautify"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[django-html]": {
     "editor.defaultFormatter": "HookyQR.beautify"

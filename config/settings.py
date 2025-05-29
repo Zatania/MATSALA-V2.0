@@ -219,10 +219,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = ""
 EMAIL_HOST_PASSWORD = ""
 
-# Loginyour mail
+# Login your mail
 # ------------------------------------------------------------------------------
-LOGIN_URL = "/login/"
-LOGOUT_REDIRECT_URL = "/login/"
+LOGIN_URL = "/welcome/"
+LOGOUT_REDIRECT_URL = "/welcome/"
 
 
 # Session

@@ -1,5 +1,6 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
+from .welcome.views import WelcomeView
 from .register.views import RegisterView
 from .login.views import LoginView
 from .forgot_password.views import ForgetPasswordView
@@ -8,6 +9,11 @@ from .verify_email.views import  VerifyEmailTokenView , VerifyEmailView, SendVer
 
 
 urlpatterns = [
+    path(
+        "welcome/",
+        WelcomeView.as_view(template_name="auth/welcome.html"),
+        name="welcome",
+    ),
     path(
         "login/",
         LoginView.as_view(template_name="auth/login.html"),
