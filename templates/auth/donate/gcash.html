@@ -30,43 +30,40 @@
 {% block content %}
 <div class="authentication-wrapper authentication-cover">
   <!-- Logo -->
-  <a href="{% url 'index' %}" class="auth-cover-brand d-flex align-items-center gap-2">
-    <span class="app-brand-logo demo">{% include 'partials/logo.html' %}</span>
-    <span class="app-brand-text demo text-heading fw-semibold">{% get_theme_variables 'template_name' %}</span>
-  </a>
+{#  <a href="{% url 'index' %}" class="auth-cover-brand d-flex align-items-center gap-2">#}
+{#    <span class="app-brand-logo demo">{% include 'partials/logo.html' %}</span>#}
+{#    <span class="app-brand-text demo text-heading fw-semibold">{% get_theme_variables 'template_name' %}</span>#}
+{#  </a>#}
   <!-- /Logo -->
   <div class="authentication-inner row m-0">
     <!-- /Left Section -->
-    <div class="d-none d-lg-flex col-lg-7 col-xl-8 align-items-center justify-content-center p-12 pb-2">
+    <div class="d-none d-lg-flex col-lg-7 col-xl-7 align-items-center justify-content-center p-12 pb-2">
       <img
-        src="{% static 'img/illustrations/auth-login-illustration-' %}{{ COOKIES.style|default:style }}.png"
+        src="{% static 'img/branding/branding.png' %}"
         class="auth-cover-illustration w-100"
-        alt="auth-illustration"
-        data-app-light-img="illustrations/auth-login-illustration-light.png"
-        data-app-dark-img="illustrations/auth-login-illustration-dark.png"
+        alt="welcome illustration"
       />
     </div>
     <!-- /Left Section -->
 
-    <!-- Login -->
-    <div class="d-flex col-12 col-lg-5 col-xl-4 align-items-center justify-content-center authentication-bg position-relative py-sm-12 px-12 py-6">
-      <div class="w-100" style="max-width: 400px;">
-        <a href="{% url 'login' %}" class="d-block mb-5 text-center">
+    <!-- Donate/Need Assistance -->
+    <div class="d-flex col-lg-5 col-xl-5 align-items-center justify-content-center authentication-bg position-relative py-sm-12 px-12 py-6">
+      <div class="w-100" style="max-width: 250px;">
+        <a href="{% url 'donate' %}" class="d-block mb-5 text-center">
           <button class="btn btn-primary d-flex flex-column align-items-center justify-content-center w-100 py-2" type="submit">
-            <img src="{% static 'img/welcome/login.png' %}" alt="Login" style="width: 50%; max-width: 125px; height: auto;" />
-            <span class="mt-2">Login</span>
+            <img src="{% static 'img/kiosk/gcash-white.png' %}" alt="Donate" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">GCash QR</span>
           </button>
         </a>
-        <a href="{% url 'register' %}" class="d-block text-center">
+        <a href="{% url 'kiosk' %}" class="d-block text-center">
           <button class="btn btn-outline-primary d-flex flex-column align-items-center justify-content-center w-100 py-2" type="submit">
-            <img src="{% static 'img/welcome/register.png' %}" alt="Register" style="width: 50%; max-width: 125px; height: auto;" />
-            <span class="mt-2">Register</span>
+            <img src="{% static 'img/kiosk/goback.png' %}" alt="Login" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">Back</span>
           </button>
         </a>
       </div>
     </div>
-
-    <!-- /Login -->
+    <!-- /Donate/Need Assistance -->
   </div>
 </div>
 {% endblock %}

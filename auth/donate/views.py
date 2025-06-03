@@ -2,7 +2,7 @@ from django.shortcuts import redirect
 from auth.views import AuthView
 
 
-class WelcomeView(AuthView):
+class DonateView(AuthView):
     def get(self, request):
         if request.user.is_authenticated:
             # If the user is already logged in, redirect them to the home page or another appropriate page.

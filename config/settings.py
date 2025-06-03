@@ -81,7 +81,8 @@ INSTALLED_APPS = [
     "apps.charts",
     "apps.maps",
     "apps.transactions",
-    "auth.apps.AuthConfig"
+    "auth.apps.AuthConfig",
+    "django_extensions"
 ]
 
 MIDDLEWARE = [
@@ -221,8 +222,8 @@ EMAIL_HOST_PASSWORD = ""
 
 # Login your mail
 # ------------------------------------------------------------------------------
-LOGIN_URL = "/welcome/"
-LOGOUT_REDIRECT_URL = "/welcome/"
+LOGIN_URL = "/login"
+LOGOUT_REDIRECT_URL = "/login"
 
 
 # Session

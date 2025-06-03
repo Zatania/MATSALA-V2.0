@@ -1,0 +1,107 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Login{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/pages-auth.js' %}"></script>
+<script src="{% static 'js/ui-popover.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="authentication-wrapper authentication-cover">
+  <!-- Logo -->
+{#  <a href="{% url 'index' %}" class="auth-cover-brand d-flex align-items-center gap-2">#}
+{#    <span class="app-brand-logo demo">{% include 'partials/logo.html' %}</span>#}
+{#    <span class="app-brand-text demo text-heading fw-semibold">{% get_theme_variables 'template_name' %}</span>#}
+{#  </a>#}
+  <!-- /Logo -->
+  <div class="authentication-inner row m-0">
+    <!-- /Left Section -->
+    <div class="d-none d-lg-flex col-lg-7 col-xl-7 align-items-center justify-content-center p-12 pb-2">
+      <img
+        src="{% static 'img/branding/branding.png' %}"
+        class="auth-cover-illustration w-100"
+        alt="welcome illustration"
+      />
+    </div>
+    <!-- /Left Section -->
+
+    <!-- Donate/Need Assistance -->
+    <div class="d-flex col-lg-5 col-xl-5 align-items-center justify-content-center authentication-bg position-relative py-sm-12 px-12 py-6">
+      <div class="w-100" style="max-width: 250px;">
+        <a href="{% url 'donate' %}" class="d-block mb-5 text-center">
+          <button class="btn btn-primary d-flex flex-column align-items-center justify-content-center w-100 py-2">
+            <img src="{% static 'img/kiosk/donate-white.png' %}" alt="Donate" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">Donate</span>
+          </button>
+        </a>
+        <a href="{% url 'assistance' %}" class="d-block mb-5 text-center">
+          <button class="btn btn-primary d-flex flex-column align-items-center justify-content-center w-100 py-2">
+            <img src="{% static 'img/kiosk/assistance-white.png' %}" alt="Login" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">I Need Assistance</span>
+          </button>
+        </a>
+        <button id="btnInfoHelp" class="btn btn-outline-primary d-flex flex-column align-items-center justify-content-center w-100 py-2" data-bs-toggle="modal" data-bs-target="#infoModal">
+          <img src="{% static 'img/kiosk/help.png' %}" alt="Login" style="width: 50%; max-width: 125px; height: auto;" />
+          <span class="mt-2">Information / Help</span>
+        </button>
+      </div>
+    </div>
+    <!-- /Donate/Need Assistance -->
+    <!-- =======================
+       Modal: Information / Help
+       ======================= -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">How to Use</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-2">For donation, you can either:</p>
+            <ul class="ps-3">
+              <li>Donate through coins (press <strong>Coin Slot</strong>)</li>
+              <li>Or GCash QR Code (press <strong>GCash QR</strong>)</li>
+            </ul>
+            <p class="small text-muted mb-5">
+              If you have trouble with the donation, please contact the responsible persons for the kiosk.
+            </p>
+            <p class="mb-2">For assistance, you can either:</p>
+            <ul class="ps-3">
+              <li>Scan your face (press <strong>Facial Scan</strong>)</li>
+              <li>Or log in manually (press <strong>Account Login</strong>)</li>
+            </ul>
+            <p class="small text-muted mb-0">
+              If you have trouble with face recognition, choose “Login” instead.
+            </p>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
