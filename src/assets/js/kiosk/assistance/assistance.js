@@ -12,13 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnShowFaceScan = document.getElementById('btnShowFaceScan');
   const btnCaptureFace = document.getElementById('btnCaptureFace');
   const btnRetryFace = document.getElementById('btnRetryFace');
-  const btnLoginInstead = document.getElementById('btnLoginInstead');
 
   const loginUsername = document.getElementById('loginUsername');
   const loginPassword = document.getElementById('loginPassword');
   const btnLoginSubmit = document.getElementById('btnLoginSubmit');
   const loginError = document.getElementById('loginError');
-  const btnBackToWelcome = document.getElementById('btnBackToWelcome');
 
   const needButtons = document.querySelectorAll('.need-btn');
   const beneficiaryFirstNameEl = document.getElementById('beneficiaryFirstName');
@@ -91,11 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keep camera open
   });
 
-  btnLoginInstead.addEventListener('click', () => {
-    faceCaptureContainer.classList.add('d-none');
-    loginSection.classList.remove('d-none');
-  });
-
   btnCaptureFace.addEventListener('click', () => {
     const canvas = document.createElement('canvas');
     canvas.width = faceVideo.videoWidth;
@@ -147,10 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
     input.addEventListener('input', () => {
       btnLoginSubmit.disabled = !(loginUsername.value && loginPassword.value);
     });
-  });
-
-  btnBackToWelcome.addEventListener('click', () => {
-    bootstrap.Modal.getInstance(authModalEl).hide();
   });
 
   document.getElementById('loginForm').addEventListener('submit', e => {

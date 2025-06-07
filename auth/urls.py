@@ -10,12 +10,23 @@ from .login.views import LoginView
 from .forgot_password.views import ForgetPasswordView
 from .reset_password.views import ResetPasswordView
 from .verify_email.views import  VerifyEmailTokenView , VerifyEmailView, SendVerificationView
-
+from .web import views
+from .web.views import WebView
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path(
+        "web/",
+        WebView.as_view(),
+        name="web",
+    ),
+    path(
+        "",
+        RedirectView.as_view(url="/web/", permanent=False)
+    ),
+    path(
         "kiosk/",
-        KioskView.as_view(template_name="auth/kiosk/kiosk.html"),
+        KioskView.as_view(),
         name="kiosk",
     ),
     path(

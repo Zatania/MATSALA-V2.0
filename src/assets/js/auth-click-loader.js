@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
       // Show loading state
       btnSubmit.addEventListener('click', function () {
         btnSubmit.classList.add('disabled');
-        btnText.textContent = 'Sending email... ';
+        btnText.textContent = 'Submitting... ';
         btnLoader.classList.remove('visually-hidden');
       });
     }

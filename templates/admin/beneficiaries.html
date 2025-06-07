@@ -1,0 +1,165 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Beneficiaries{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-bs5/datatables.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/sweetalert2/sweetalert2.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/moment/moment.js' %}"></script>
+<script src="{% static 'vendor/libs/datatables-bs5/datatables-bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/sweetalert2/sweetalert2.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/beneficiaries-list.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+
+<!-- Beneficiaries Table -->
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0">All Beneficiaries</h5>
+    </div>
+    <div class="card-datatable table-responsive">
+      <table class="datatables-beneficiary table w-100">
+        <thead class="table-light">
+          <tr class="text-nowrap">
+            <th></th>
+            <th>First Name</th>
+            <th>Last Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for beneficiary in beneficiaries %}
+          <tr data-beneficiary-id="{{ beneficiary.id }}">
+            <td></td>
+            <td>{{ beneficiary.first_name }}</td>
+            <td>{{ beneficiary.last_name }}</td>
+            <td>{{ beneficiary.email }}</td>
+            <td>{{ beneficiary.phone }}</td>
+            <td>
+              <div class="d-inline-block text-nowrap">
+                <button
+                  class="btn btn-sm btn-icon btn-text-secondary rounded-pill waves-effect edit-beneficiary-btn"
+                  data-beneficiary-id="{{ beneficiary.id }}"
+                  data-bs-toggle="modal"
+                  data-bs-target="#editBeneficiaryModal"
+                >
+                  <i class="ri-edit-box-line ri-22px"></i>
+                </button>
+                <!-- Delete button triggers SweetAlert -->
+                <button
+                  class="btn btn-sm btn-icon btn-text-secondary rounded-pill waves-effect delete-beneficiary-btn"
+                  data-beneficiary-id="{{ beneficiary.id }}"
+                  data-beneficiary-username="{{ beneficiary.username }}"
+                >
+                  <i class="ri-delete-bin-7-line ri-22px"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!--/ Beneficiaries Table -->
+
+<!-- Edit Beneficiary Modal -->
+<div
+  class="modal fade"
+  id="editBeneficiaryModal"
+  tabindex="-1"
+  aria-labelledby="editBeneficiaryModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="editBeneficiaryForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editBeneficiaryModalLabel">Edit Beneficiary</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Close"
+          ></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="editBeneficiaryId" name="beneficiary_id" />
+
+          <div class="row g-3">
+            <div class="col-md-6 form-floating form-floating-outline mb-3">
+              <input type="text" class="form-control" id="editFirstName" name="first_name" placeholder="Enter your last name" required>
+              <label for="editFirstName">First Name</label>
+            </div>
+            <div class="col-md-6 form-floating form-floating-outline mb-3">
+              <input type="text" class="form-control" id="editLastName" name="last_name" placeholder="Enter your last name" required>
+              <label for="editLastName">Last Name</label>
+            </div>
+            <div class="col-md-6 form-floating form-floating-outline mb-3">
+              <input type="text" class="form-control" id="editEmail" name="email" placeholder="Enter your email" required>
+              <label for="editEmail">Email</label>
+            </div>
+            <div class="col-md-6 form-floating form-floating-outline mb-3">
+              <input type="text" class="form-control" id="editPhone" name="phone" placeholder="Enter your phone number">
+              <label for="editPhone">Phone</label>
+            </div>
+            <div class="col-md-6 mb-3 form-password-toggle">
+              <div class="input-group input-group-merge">
+                <div class="form-floating form-floating-outline">
+                  <input type="password" id="password" class="form-control" name="password" placeholder="&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;&#xb7;" aria-describedby="password" />
+                  <label for="password">Password</label>
+                </div>
+                <span class="input-group-text cursor-pointer"><i class="ri-eye-off-line"></i></span>
+              </div>
+            </div>
+            <div class="col-md-6 mb-3 form-password-toggle">
+              <div class="input-group input-group-merge">
+                <div class="form-floating form-floating-outline">
+                  <input type="password" id="confirm_password" class="form-control" name="confirm_password" placeholder="Confirm Password" />
+                  <label for="confirm_password">Confirm Password</label>
+                </div>
+                <span class="input-group-text cursor-pointer"><i class="ri-eye-off-line"></i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            data-bs-dismiss="modal"
+          >
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- /Edit Beneficiary Modal -->
+
+<script>
+  const addTransactionBtn = true;
+</script>
+
+{% endblock %}

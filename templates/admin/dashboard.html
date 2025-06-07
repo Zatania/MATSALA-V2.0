@@ -1,0 +1,116 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - Analytics{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/swiper/swiper.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script src="{% static 'vendor/libs/swiper/swiper.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/cards-statistics.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/css/pages/cards-analytics.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/dashboards-analytics.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="row g-4">
+
+  <!-- Total Donations Today -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Total Donations (Today)</h5>
+        <p class="card-text display-5">{{ total_today }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total Donations This Week -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Total Donations (Last 7 Days)</h5>
+        <p class="card-text display-5">{{ total_week }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Total Donations This Month -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Total Donations (This Month)</h5>
+        <p class="card-text display-5">{{ total_month }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Separator -->
+  <div class="w-100"></div>
+
+  <!-- Donations by Method: Coin -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Coin Donations (All Time)</h5>
+        <p class="card-text display-5">{{ coin_total }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Donations by Method: GCash -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">GCash Donations (All Time)</h5>
+        <p class="card-text display-5">{{ gcash_total }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pending Claims Count -->
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Pending Claims</h5>
+        <p class="card-text display-5">{{ pending_claims_count }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Separator -->
+  <div class="w-100"></div>
+
+  <!-- Coin Box Status -->
+  <div class="col-md-6 offset-md-3">
+    <div class="card">
+      <div class="card-body text-center">
+        <h5 class="card-title">Coin Box Status</h5>
+        {% if coin_box.is_open %}
+          <span class="badge bg-success">Open</span>
+        {% else %}
+          <span class="badge bg-danger">Closed</span>
+        {% endif %}
+        <p class="mt-2 mb-0">{{ coin_box.message }}</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock content %}

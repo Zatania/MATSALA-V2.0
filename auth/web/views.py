@@ -3,7 +3,7 @@ from django.views import View
 from django.urls import reverse
 
 
-class KioskView(View):
+class WebView(View):
   def get(self, request):
     if request.user.is_authenticated and getattr(request.user, "role", None) == "admin":
       return redirect(reverse("admin_dashboard"))
@@ -12,6 +12,6 @@ class KioskView(View):
     elif request.user.is_authenticated and getattr(request.user, "role", None) == "donor":
       return redirect(reverse("web_donor_dashboard"))
 
-    return render(request, "auth/kiosk/kiosk.html", {
+    return render(request, "web/web.html", {
       "layout_path": "layout/layout_blank.html"
     })

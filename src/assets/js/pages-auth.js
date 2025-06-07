@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', function (e) {
             if (status === 'Valid') {
               // If the form is valid, show loading state
               btnSubmit.classList.add('disabled');
-              btnText.textContent = 'Sending email... ';
+              btnText.textContent = 'Submitting... ';
               btnLoader.classList.remove('visually-hidden');
             }
           });
