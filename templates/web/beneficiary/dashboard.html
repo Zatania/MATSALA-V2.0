@@ -1,0 +1,339 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - Beneficiary{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/bootstrap-select/bootstrap-select.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+<script src="{% static 'vendor/libs/bootstrap-select/bootstrap-select.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/forms-selects.js' %}"></script>
+<script src="{% static 'js/ui-popover.js' %}"></script>
+<script src="{% static 'js/web/assistance/assistance.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Hello, {{ request.user.first_name }}!</h2>
+    <button
+      class="btn btn-success"
+      data-bs-toggle="modal"
+      data-bs-target="#authModal"
+    >
+      Get Assistance
+    </button>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-4 mb-5">
+    {% for stat in summary_stats %}
+      <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body text-center">
+            <h6 class="text-uppercase text-secondary">{{ stat.label }}</h6>
+            <p class="display-6 fw-bold">
+              {{ stat.value }}
+            </p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Method Cards -->
+  <div class="row g-4">
+    {% for m in method_stats %}
+      <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-3">
+              <i class="bi {{ m.icon }} display-4 text-success me-3"></i>
+              <h6 class="mb-0 text-secondary">{{ m.label }}</h6>
+            </div>
+            <div class="row text-center">
+              <div class="col-6 mb-2">
+                <div class="small text-uppercase text-muted">Total</div>
+                <div class="h5">
+                  ₱ {{ m.total.amount }}<br>
+                  <small>({{ m.total.count }})</small>
+                </div>
+              </div>
+              <div class="col-6 mb-2">
+                <div class="small text-uppercase text-success">Approved</div>
+                <div class="h5">
+                  ₱ {{ m.approved.amount }}<br>
+                  <small>({{ m.approved.count }})</small>
+                </div>
+              </div>
+              <div class="col-6 mb-2">
+                <div class="small text-uppercase text-danger">Rejected</div>
+                <div class="h5">
+                  ₱ {{ m.rejected.amount }}<br>
+                  <small>({{ m.rejected.count }})</small>
+                </div>
+              </div>
+              <div class="col-6 mb-0">
+                <div class="small text-uppercase text-warning">Pending</div>
+                <div class="h5">
+                  ₱ {{ m.pending.amount }}<br>
+                  <small>({{ m.pending.count }})</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- =======================
+     Modal: Authentication Screen
+     ID = authModal
+     ======================= -->
+<div class="modal fade" id="authModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Please Verify First</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Face Scan Section -->
+        <div id="faceScanSection" class="">
+          <!-- show this button to enter the scan flow -->
+          <button id="btnShowFaceScan" class="btn btn-outline-primary w-100 mb-3">
+            <i class="bi bi-camera"></i> Scan Face
+          </button>
+
+          <!-- this container holds the form + video + capture buttons -->
+          <div id="faceCaptureContainer" class="d-none text-center">
+            <!-- loading spinner, hidden by default -->
+            <div id="faceMatchSpinner" class="text-center mt-3" style="display: none;">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Processing…</span>
+              </div>
+              <p class="small mt-2">Verifying… please hold still.</p>
+            </div>
+            <!-- Face Scan Instructions -->
+            <p class="mb-2">Align your face in the frame</p>
+            <video
+              id="faceVideo"
+              autoplay
+              playsinline
+              class="border rounded"
+              style="width:100%; max-width:400px;"
+            ></video>
+            <div class="mt-3">
+              <button
+                type="button"
+                id="btnCaptureFace"
+                class="btn btn-success btn-sm me-2"
+              >
+                Capture
+              </button>
+              <button
+                type="button"
+                id="btnRetryFace"
+                class="btn btn-secondary btn-sm"
+              >
+                Retry
+              </button>
+            </div>
+            <div
+              id="faceCaptureError"
+              class="text-danger small mt-2"
+              style="display: none;"
+            ></div>
+
+            <!-- Hidden file input (used by JS if needed) -->
+            <input
+              type="file"
+              name="photo"
+              id="photoInput"
+              accept="image/*"
+              hidden
+            />
+          </div>
+
+          <hr>
+        </div>
+        <!-- /Face Scan Section -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =======================
+     Modal: Need Selection Screen
+     ID = needSelectionModal
+     ======================= -->
+<div class="modal fade" id="needSelectionModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Hello, <span id="beneficiaryFirstName">User</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p class="mb-4">What type of assistance do you need today?</p>
+        <div class="row g-2">
+          <div class="col-6">
+            <button class="btn btn-outline-primary w-100 py-3 need-btn" data-need="food">
+              Food Assistance
+            </button>
+          </div>
+          <div class="col-6">
+            <button class="btn btn-outline-primary w-100 py-3 need-btn" data-need="school_supplies">
+              School Supplies
+            </button>
+          </div>
+          <div class="col-6">
+            <button class="btn btn-outline-primary w-100 py-3 need-btn" data-need="transport">
+              Transport
+            </button>
+          </div>
+          <div class="col-6">
+            <button class="btn btn-outline-primary w-100 py-3 need-btn" data-need="rent">
+              Rent
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button type="button"
+                class="btn btn-outline-secondary"
+                data-bs-dismiss="modal"
+                data-bs-target="#authModal"
+                data-bs-toggle="modal">
+          Back
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- =======================
+       Modal: Request Details Screen
+       ID = requestDetailsModal
+       ======================= -->
+  <div class="modal fade" id="requestDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">You chose <span id="selectedNeedLabel">...</span></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="requestForm">
+            <div class="mb-4">
+              <label for="requestedAmount" class="form-label">Requested Amount (₱)</label>
+              <input
+                type="number"
+                id="requestedAmount"
+                class="form-control"
+                placeholder="₱0.00"
+                min="1"
+                step="1"
+                required
+              >
+              <div id="amountHelp" class="form-text">
+                Please enter an amount in pesos (₱). Minimum ₱1.
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button"
+                  class="btn btn-outline-secondary"
+                  data-bs-dismiss="modal"
+                  data-bs-target="#needSelectionModal"
+                  data-bs-toggle="modal">
+            Back
+          </button>
+          <button type="button" id="btnSubmitRequest" class="btn btn-primary" disabled>
+            Submit Request
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================
+       Modal: Processing Screen
+       ID = processingModal
+       ======================= -->
+  <div class="modal fade" id="processingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+      <div class="modal-content text-center p-4">
+        <div>
+          <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p class="mb-0">Processing your request...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================
+       Modal: Confirmation (Pending)
+       ID = confirmationPendingModal
+       ======================= -->
+  <div class="modal fade" id="confirmationPendingModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-body text-center py-5">
+          <i class="bi bi-exclamation-triangle-fill text-warning display-1 mb-3"></i>
+          <h4 class="mb-3">Your request is pending approval.</h4>
+          <p class="mb-2">You will be notified once an administrator reviews your request.</p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-primary" id="btnFinishPending">
+            Finish
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =======================
+     Modal: Error
+     ID = errorModal
+     ======================= -->
+<div class="modal fade" id="errorModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content text-center p-4">
+      <div class="text-danger mb-3">
+        <i class="bi bi-exclamation-octagon-fill display-1"></i>
+      </div>
+      <p id="errorMessage" class="mb-4 fw-semibold">An error occurred.</p>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+          OK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

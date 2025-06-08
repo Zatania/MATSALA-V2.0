@@ -304,9 +304,6 @@ $(function () {
       url: `/web/admin/beneficiaries/${beneficiaryId}/update/`,
       method: 'POST',
       data: formData,
-      headers: {
-        'X-CSRFToken': csrfToken
-      },
       success: function () {
         $('#editBeneficiaryModal').modal('hide');
         Swal.fire({
@@ -365,9 +362,6 @@ $(function () {
         $.ajax({
           url: `/web/admin/beneficiaries/${beneficiaryId}/delete/`,
           method: 'POST',
-          headers: {
-            'X-CSRFToken': csrfToken
-          },
           success: function () {
             Swal.fire({
               icon: 'success',

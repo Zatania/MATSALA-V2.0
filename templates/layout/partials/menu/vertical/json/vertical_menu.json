@@ -14,7 +14,7 @@
     },
     {
       "name": "Donations Log",
-          "url": "admin_dashboard",
+          "url": "admin_donations_log",
       "icon": "menu-icon tf-icons ri-home-smile-line",
       "slug": "donations-log"
     },
@@ -26,7 +26,7 @@
     },
     {
       "name": "Claims Log",
-          "url": "admin_dashboard",
+          "url": "admin_claims_log",
       "icon": "menu-icon tf-icons ri-home-smile-line",
       "slug": "claims-log"
     }

@@ -252,7 +252,7 @@ def list_all_donations(method: str = None, status: str = None):
     """
     Return a QuerySet of Donation objects, optionally filtered.
     """
-    qs = Donation.objects.all()
+    qs = Donation.objects.select_related('user')
     if method:
         qs = qs.filter(method=method)
     if status:
@@ -278,6 +278,7 @@ def create_claim(user_id: int, need_type: str, requested_amount: float) -> Claim
         requested_amount=requested_amount,
         status="pending",
     )
+    print(">>> Claim saved with ID:", claim.id)
     return claim
 
 
@@ -337,7 +338,7 @@ def list_all_claims(need_type: str = None, status: str = None):
     """
     Return a QuerySet of Claim objects, optionally filtered.
     """
-    qs = Claim.objects.all()
+    qs = Claim.objects.select_related('user')
     if need_type:
         qs = qs.filter(need_type=need_type)
     if status:

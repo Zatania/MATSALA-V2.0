@@ -78,14 +78,16 @@
                 <div class="dropdown-divider"></div>
               </li>
               <li>
-                <form action="{% url 'admin_logout' %}" method="post" class="d-grid px-4 pt-2 pb-1">
+                <form action="{% url 'logout' %}" method="post" class="d-grid px-4 pt-2 pb-1">
                   {% csrf_token %}
                   <button type="submit" class="btn btn-danger d-flex">
-                     <small class="align-middle">Logout</small>
-                     <i class="ri-logout-box-r-line ms-2 ri-16px"></i>
+                    <small class="align-middle">Logout</small>
+                    <i class="ri-logout-box-r-line ms-2 ri-16px"></i>
                   </button>
                 </form>
               </li>
+
+
             </ul>
           </li>
           <!--/ User -->

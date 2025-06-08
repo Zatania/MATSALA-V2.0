@@ -256,12 +256,19 @@ $(function () {
 
   // 3. Handle “Edit” button click
   $(document).on('click', '.edit-donor-btn', function () {
+    function getCookie(name) {
+      const cookieValue = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+      return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+    }
+
+    // Usage:
+    const csrfToken = getCookie('csrftoken');
     const donorId = $(this).data('donor-id');
     $('#editDonorId').val(donorId);
 
     // Fetch existing data via AJAX GET
     $.ajax({
-      url: `/admin/donors/${donorId}/update/`,
+      url: `/web/admin/donors/${donorId}/update/`,
       method: 'GET',
       success: function (data) {
         $('#editFirstName').val(data.first_name);
@@ -283,12 +290,9 @@ $(function () {
     const formData = $(this).serialize();
 
     $.ajax({
-      url: `/admin/donors/${donorId}/update/`,
+      url: `/web/admin/donors/${donorId}/update/`,
       method: 'POST',
       data: formData,
-      headers: {
-        'X-CSRFToken': Cookies.get('csrftoken')
-      },
       success: function () {
         $('#editDonorModal').modal('hide');
         Swal.fire('Success', 'Donor updated successfully.', 'success').then(() => {
@@ -304,6 +308,13 @@ $(function () {
 
   // 5. Handle “Delete” button click with SweetAlert
   $(document).on('click', '.delete-donor-btn', function () {
+    function getCookie(name) {
+      const cookieValue = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+      return cookieValue ? decodeURIComponent(cookieValue.split('=')[1]) : null;
+    }
+
+    // Usage:
+    const csrfToken = getCookie('csrftoken');
     const donorId = $(this).data('donor-id');
     const donorUsername = $(this).data('donor-username');
 
@@ -320,11 +331,8 @@ $(function () {
       if (result.isConfirmed) {
         // Send AJAX POST to delete endpoint
         $.ajax({
-          url: `/admin/donors/${donorId}/delete/`,
+          url: `/web/admin/donors/${donorId}/delete/`,
           method: 'POST',
-          headers: {
-            'X-CSRFToken': Cookies.get('csrftoken')
-          },
           success: function () {
             Swal.fire('Deleted!', 'Donor has been deleted.', 'success').then(() => {
               // Remove row from DataTable

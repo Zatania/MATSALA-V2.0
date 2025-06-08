@@ -27,6 +27,11 @@ urlpatterns = [
     # 2. DONOR WEB PORTAL
     # -------------------------------------------------------------------------
     path(
+      "web/donor/dashboard/",
+      views.web_donor_dashboard,
+      name="web_donor_dashboard"
+    ),
+    path(
         "web/donor/choice/",
         views.DonorWebChoiceView.as_view(),
         name="web_donor_choice"
@@ -51,24 +56,14 @@ urlpatterns = [
         views.DonorWebDonateView.as_view(),
         name="web_donor_donate"
     ),
-    path(
-        "web/donor/thank-you/<int:donation_id>/",
-        views.DonorWebThankYouView.as_view(),
-        name="web_donor_thank_you"
-    ),
 
     # -------------------------------------------------------------------------
     # 3. BENEFICIARY KIOSK
     # -------------------------------------------------------------------------
     path(
         "kiosk/beneficiary/",
-        views.KioskBeneficiaryWelcomeView.as_view(),
-        name="kiosk_beneficiary_welcome"
-    ),
-    path(
-        "kiosk/beneficiary/auth/",
-        views.KioskBeneficiaryAuthView.as_view(),
-        name="kiosk_beneficiary_auth"
+        views.KioskBeneficiaryView.as_view(),
+        name="kiosk_beneficiary"
     ),
     path(
         "kiosk/beneficiary/facial-recog/",
@@ -81,29 +76,9 @@ urlpatterns = [
         name="kiosk_beneficiary_login"
     ),
     path(
-        "kiosk/beneficiary/need-selection/",
-        views.KioskBeneficiaryNeedSelectionView.as_view(),
-        name="kiosk_beneficiary_need_selection"
-    ),
-    path(
-        "kiosk/beneficiary/request-details/",
-        views.KioskBeneficiaryRequestDetailsView.as_view(),
-        name="kiosk_beneficiary_request_details"
-    ),
-    path(
-        "kiosk/beneficiary/processing/",
-        views.KioskBeneficiaryProcessingView.as_view(),
-        name="kiosk_beneficiary_processing"
-    ),
-    path(
-        "kiosk/beneficiary/pending/",
-        views.KioskBeneficiaryPendingView.as_view(),
-        name="kiosk_beneficiary_pending"
-    ),
-    path(
-        "kiosk/beneficiary/auto-paid/",
-        views.KioskBeneficiaryAutoPaidView.as_view(),
-        name="kiosk_beneficiary_auto_paid"
+        "kiosk/beneficiary/submit-claim/",
+        views.KioskBeneficiarySubmitClaimView.as_view(),
+        name="kiosk_beneficiary_submit_claim"
     ),
 
     # -------------------------------------------------------------------------
@@ -128,6 +103,11 @@ urlpatterns = [
         "web/beneficiary/dashboard/",
         views.BeneficiaryWebDashboardView.as_view(),
         name="web_beneficiary_dashboard"
+    ),
+    path(
+        "web/beneficiary/verify-face/",
+        views.BeneficiaryFaceVerifyView.as_view(),
+        name="web_beneficiary_verify_face"
     ),
     path(
         "web/beneficiary/new-request/",

@@ -1,0 +1,196 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - Donor{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/bootstrap-select/bootstrap-select.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+<script src="{% static 'vendor/libs/bootstrap-select/bootstrap-select.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/forms-selects.js' %}"></script>
+<script src="{% static 'js/ui-popover.js' %}"></script>
+<script src="{% static 'js/web/donate/donate.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Hello, {{ request.user.first_name }}!</h2>
+    <button
+      class="btn btn-success"
+      data-bs-toggle="modal"
+      data-bs-target="#gcashModal"
+    >
+      <i class="bi bi-qr-code me-1"></i> Donate via GCash
+    </button>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-4 mb-5">
+    {% for stat in summary_stats %}
+      <div class="col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body text-center">
+            <h6 class="text-uppercase text-secondary">{{ stat.label }}</h6>
+            <p class="display-6 fw-bold">
+              ₱{{ stat.value }}
+            </p>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <!-- Method Cards -->
+  <div class="row g-4">
+    {% for m in method_stats %}
+      <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-body d-flex align-items-center">
+            <i class="bi {{ m.icon }} display-4 text-success me-3"></i>
+            <div>
+              <h6 class="mb-1 text-secondary">{{ m.label }}</h6>
+              <p class="h3 mb-0">₱{{ m.value }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+    <!-- GCash Modal -->
+    <div class="modal fade" id="gcashModal" tabindex="-1" aria-hidden="true">
+      {% csrf_token %}
+      <div class="modal-dialog modal-l" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="gcashQRDONATIONTITLE">GCASH QR Donation</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-12 mb-6">
+                <div class="form-floating form-floating-outline">
+                  <select id="gcashpickerDonationType" class="selectpicker w-100" data-style="btn-default">
+                    <option selected>Anonymous</option>
+                    <option>Named</option>
+                  </select>
+                  <label for="gcashpickerDonationType">Donation Type</label>
+                </div>
+              </div>
+
+              <!-- Amount GCash QR -->
+              <div class="col-md-12 mb-6">
+                <div class="form-floating form-floating-outline">
+                  <select id="gcashpickerAmountQR" class="selectpicker w-100" data-style="btn-default">
+                    <option selected>5</option>
+                    <option>10</option>
+                    <option>20</option>
+                    <option>50</option>
+                    <option>100</option>
+                    <option>500</option>
+                    <option>1000</option>
+                  </select>
+                  <label for="gcashpickerAmountQR">Select Amount</label>
+                </div>
+              </div>
+
+              <!-- GCash QR Code -->
+              <div id="gcashQrImageWrapper" class="text-center mt-4 mb-4" style="display: none;">
+                <img id="gcashQrImage" src="" alt="GCash QR" class="img-fluid" style="max-height: 300px;" />
+                <p id="gcashQrText" class="mt-3 fs-5 text-danger"></p>
+              </div>
+
+
+              <!-- Conditional: Named fields -->
+              <div id="gcashnamedFields" class="mb-4" style="display: none;">
+                <div class="form-floating form-floating-outline mb-3">
+                  <input type="text" id="firstName" class="form-control" placeholder="First Name" value="{{ request.user.first_name }}" readonly>
+                  <label for="firstName">First Name</label>
+                </div>
+                <div class="form-floating form-floating-outline mb-3">
+                  <input type="text" id="lastName" class="form-control" placeholder="Last Name" value="{{ request.user.last_name }}" readonly>
+                  <label for="lastName">Last Name</label>
+                </div>
+                <div class="form-floating form-floating-outline mb-3">
+                  <input type="text" id="username" class="form-control" placeholder="Enter username" value="{{ request.user.username }}" readonly>
+                  <label for="username">Username</label>
+{#                  <small class="form-text text-muted">If you have an account, enter your username to save this donation.</small>#}
+                </div>
+              </div>
+              <!-- Done button aligned to the right -->
+              <div class="d-flex justify-content-center">
+                <button id="gcashDoneBtn" class="btn btn-success" disabled>Done</button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <p>Select the amount you want to donate from the dropdown. Thank you.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /GCash Modal -->
+    <!-- Reference Number Modal (shown after “Done” is clicked) -->
+    <div class="modal fade" id="referenceModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-md" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Enter Reference Number</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="form-floating form-floating-outline mb-3">
+              <input type="text"
+                     id="referenceNumberInput"
+                     class="form-control"
+                     placeholder="Reference Number">
+              <label for="referenceNumberInput">Reference Number</label>
+            </div>
+            <div id="referenceError" class="text-danger small" style="display: none;">
+              Please enter a valid reference number.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button id="referenceConfirmBtn" class="btn btn-primary" disabled>Confirm</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /Reference Number Modal -->
+    <!-- Thank You Modal -->
+    <div class="modal fade" id="thankYouModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-md modal-dialog-centered" role="document">
+        <div class="modal-content text-center p-4">
+          <div class="modal-body">
+            <h4 class="mb-3">Thank You!</h4>
+            <p class="mb-0">Your donation has been received.</p>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button type="button" class="btn btn-success" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /Thank You Modal -->
+</div>
+{% endblock content %}

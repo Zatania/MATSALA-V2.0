@@ -1,8 +1,15 @@
 # core/views.py
-
+import datetime
+from datetime import timedelta
 import json
+import tempfile
 
+import face_recognition
+import numpy as np
+from PIL import Image
 from django.conf import settings
+from django.db.models.aggregates import Sum, Count
+from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -12,6 +19,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
 
 from .crud import (
     create_donor,
@@ -184,6 +192,73 @@ def gcash_donate(request):
 # -----------------------------------------------------------------------------
 # 2. DONOR WEB PORTAL VIEWS (unchanged)
 # -----------------------------------------------------------------------------
+@login_required
+def web_donor_dashboard(request):
+    user = request.user
+
+    # 1) Compute “today” boundaries in local time
+    now = timezone.localtime(timezone.now())
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_tomorrow = start_of_today + timedelta(days=1)
+
+    # 2) Compute week & month boundaries relative to start_of_today
+    week_start = start_of_today - timedelta(days=7)
+    month_start = start_of_today.replace(day=1)
+
+    qs = Donation.objects.filter(user=user)
+
+    # 3) Build totals using __gte / __lt on full datetimes
+    totals = {
+      "Today": qs.filter(
+        created_at__gte=start_of_today,
+        created_at__lt=start_of_tomorrow
+      ).aggregate(total=Sum("amount"))["total"] or 0,
+
+      "Last 7 Days": qs.filter(
+        created_at__gte=week_start,
+        created_at__lt=start_of_tomorrow
+      ).aggregate(total=Sum("amount"))["total"] or 0,
+
+      "This Month": qs.filter(
+        created_at__gte=month_start,
+        created_at__lt=start_of_tomorrow
+      ).aggregate(total=Sum("amount"))["total"] or 0,
+    }
+
+    methods = {
+        "Coin Donations":  (
+            qs.filter(method="coin")
+              .aggregate(Sum("amount"))["amount__sum"] or 0,
+            "bi-coin"
+        ),
+        "GCash Donations": (
+            qs.filter(method="gcash")
+              .aggregate(Sum("amount"))["amount__sum"] or 0,
+            "bi-wallet2"
+        ),
+    }
+
+    summary_stats = [
+        {"label": label, "value": value}
+        for label, value in totals.items()
+    ]
+    method_stats = [
+        {"label": label, "value": value, "icon": icon}
+        for label, (value, icon) in methods.items()
+    ]
+
+    return render(request, "web/donor/dashboard.html", {
+        "summary_stats": summary_stats,
+        "method_stats":  method_stats,
+        "is_flex": True,
+        "content_navbar": True,
+        "is_navbar": True,
+        "is_menu": False,
+        "is_footer": True,
+        "navbar_detached": True,
+        "layout_path" : "layout/layout_vertical.html"
+    })
+
 class DonorWebChoiceView(View):
     def get(self, request):
         return render(request, "web/donor/choice.html", {
@@ -201,7 +276,7 @@ class DonorWebRegisterView(View):
         username = data.get("username")
         password = data.get("password")
         confirm_pw = data.get("confirm_password")
-        email = data.get("email")
+        email = data.get("email", "")
         phone = data.get("phone", "")
         first_name = data.get("first_name", "")
         last_name = data.get("last_name", "")
@@ -221,13 +296,18 @@ class DonorWebRegisterView(View):
             face_photo_file=face_photo,
         )
         login(request, donor)
-        return redirect(reverse("web_donor_donate"))
-
+        return redirect(reverse("web_donor_dashboard"))
 
 class DonorWebLoginView(View):
     def get(self, request):
+        if request.user.is_authenticated and getattr(request.user, "role", None) == "donor":
+            return redirect(reverse("web_donor_dashboard"))
+        elif request.user.is_authenticated and getattr(request.user, "role", None) == "admin":
+            return redirect(reverse("admin_dashboard"))
+        elif request.user.is_authenticated and getattr(request.user, "role", None) == "beneficiary":
+            return redirect(reverse("web_beneficiary_dashboard"))
         return render(request, "web/donor/login.html", {
-          "layout_path": "layout/layout_blank.html"
+            "layout_path": "layout/layout_blank.html"
         })
 
     def post(self, request):
@@ -238,14 +318,12 @@ class DonorWebLoginView(View):
           messages.error(request, "Invalid donor credentials.")
           return redirect(reverse("web_donor_login"))
         login(request, user)
-        return redirect(reverse("web_donor_donate"))
-
+        return redirect(reverse("web_donor_dashboard"))
 
 @login_required
 def donor_web_logout(request):
     logout(request)
     return redirect(reverse("web"))
-
 
 class DonorWebDonateView(View):
     def get(self, request):
@@ -268,127 +346,130 @@ class DonorWebDonateView(View):
         )
         return redirect(reverse("web_donor_thank_you", kwargs={"donation_id": Donation.objects.latest("id").id}))
 
-
-class DonorWebThankYouView(View):
-    def get(self, request, donation_id: int):
-        donation = get_object_or_404(Donation, id=donation_id)
-        return render(request, "web/donor/thank_you.html", {"donation": donation})
-
-
 # -----------------------------------------------------------------------------
 # 3. BENEFICIARY KIOSK VIEWS (unchanged)
 # -----------------------------------------------------------------------------
+class KioskBeneficiaryView(View):
+  def get(self, request):
+    return render(request, "kiosk/beneficiary/beneficiary.html", {
+      "layout_path": "layout/layout_blank.html"
+    })
 
-class KioskBeneficiaryWelcomeView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/welcome.html")
-
-
-class KioskBeneficiaryAuthView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/auth.html")
-
-    def post(self, request):
-        action = request.POST.get("action")
-        if action == "scan_face":
-            return redirect(reverse("kiosk_beneficiary_facial_recog"))
-        elif action == "login":
-            return redirect(reverse("kiosk_beneficiary_login"))
-        else:
-            return redirect(reverse("kiosk_beneficiary_welcome"))
-
-
+@method_decorator(csrf_exempt, name="dispatch")
 class KioskBeneficiaryFacialRecogView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/facial_recog.html")
-
     def post(self, request):
         verification_photo = request.FILES.get("photo")
         if not verification_photo:
-            return HttpResponseBadRequest("No photo uploaded.")
+          return JsonResponse({"error": "No photo uploaded."}, status=400)
 
-        beneficiary = User.objects.filter(role="beneficiary").first()
-        if beneficiary:
-            login(request, beneficiary)
-            return redirect(reverse("kiosk_beneficiary_need_selection"))
-        else:
-            return HttpResponseBadRequest("No matching beneficiary found.")
+        # Save to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+            for chunk in verification_photo.chunks():
+                temp_file.write(chunk)
+            temp_file_path = temp_file.name
 
+        # Load & normalize uploaded image
+        try:
+            pil_img = Image.open(temp_file_path).convert("RGB")
+            uploaded_image = np.array(pil_img, dtype=np.uint8)
+            encodings = face_recognition.face_encodings(uploaded_image)
+            if not encodings:
+              return JsonResponse({"error": "No face detected"}, status=400)
 
+            uploaded_encoding = encodings[0]
+        except IndexError:
+            return JsonResponse({"error": "No face found in uploaded photo."}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": f"Invalid image: {str(e)}"}, status=400)
+
+        # Try matching against registered beneficiaries
+        beneficiaries = User.objects.filter(role="beneficiary")
+        for beneficiary in beneficiaries:
+          # Query registration photos from UserPhoto
+          registration_photos = beneficiary.photos.filter(photo_type="registration")
+          for user_photo in registration_photos:
+            try:
+              reg_pil = Image.open(user_photo.photo.path).convert("RGB")
+              registered_image = np.array(reg_pil, dtype=np.uint8)
+              registered_encodings = face_recognition.face_encodings(registered_image)
+              if not registered_encodings:
+                continue  # skip photos without faces
+
+              registered_encoding = registered_encodings[0]
+            except (IndexError, AttributeError, FileNotFoundError):
+              continue  # skip invalid photos
+
+            if face_recognition.compare_faces([registered_encoding], uploaded_encoding)[0]:
+              # Instead of logging in & redirecting, just send back beneficiary info
+              return JsonResponse({
+                "success": True,
+                "beneficiary_id": beneficiary.id,
+                "first_name": beneficiary.first_name,
+              })
+
+        return JsonResponse({"error": "No matching account found."}, status=400)
+
+@method_decorator(csrf_exempt, name="dispatch")
 class KioskBeneficiaryLoginView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/login.html")
-
     def post(self, request):
-        username = request.POST.get("username")
-        password = request.POST.get("password")
+        try:
+          body = json.loads(request.body)
+          username = body["username"].strip()
+          password = body["password"]
+        except (KeyError, json.JSONDecodeError):
+          return JsonResponse({"error": "Invalid JSON."}, status=400)
+
         user = authenticate(request, username=username, password=password)
         if user is None or user.role != "beneficiary":
-            return HttpResponseBadRequest("Invalid beneficiary credentials.")
-        login(request, user)
-        return redirect(reverse("kiosk_beneficiary_need_selection"))
+          return JsonResponse({"error": "Incorrect username/password."}, status=401)
 
-
-@method_decorator(login_required, name="dispatch")
-class KioskBeneficiaryNeedSelectionView(View):
-    def get(self, request):
-        if request.user.role != "beneficiary":
-            return redirect(reverse("kiosk_beneficiary_auth"))
-        return render(request, "kiosk/beneficiary/need_selection.html", {
-            "first_name": request.user.first_name
+        # DON’T call Django’s login()—we’re stateless here
+        return JsonResponse({
+          "success": True,
+          "beneficiary_id": user.id,
+          "first_name": user.first_name
         })
 
+@method_decorator(csrf_exempt, name="dispatch")
+class KioskBeneficiarySubmitClaimView(View):
     def post(self, request):
-        need_type = request.POST.get("need_type")
-        if need_type not in dict(Claim.NEED_CHOICES).keys():
-            return HttpResponseBadRequest("Invalid need type.")
-        request.session["selected_need"] = need_type
-        return redirect(reverse("kiosk_beneficiary_request_details"))
-
-
-@method_decorator(login_required, name="dispatch")
-class KioskBeneficiaryRequestDetailsView(View):
-    def get(self, request):
-        need_type = request.session.get("selected_need")
-        return render(request, "kiosk/beneficiary/request_details.html", {
-            "need_type": need_type
-        })
-
-    def post(self, request):
-        need_type = request.session.get("selected_need")
+        # 1) parse JSON
         try:
-            amount = float(request.POST.get("requested_amount", "0"))
-            if amount <= 0:
-                raise ValueError
-        except ValueError:
-            return HttpResponseBadRequest("Invalid amount.")
+            payload = json.loads(request.body)
+            beneficiary_id    = int(payload["beneficiary_id"])
+            need_type         = payload["need_type"]
+            requested_amount  = float(payload["requested_amount"])
+        except (KeyError, ValueError, json.JSONDecodeError):
+            return JsonResponse({"error": "Invalid request payload."}, status=400)
 
-        claim = create_claim(user_id=request.user.id, need_type=need_type, requested_amount=amount)
-        request.session["latest_claim_id"] = claim.id
-        return redirect(reverse("kiosk_beneficiary_processing"))
+        # 2) validate amount
+        if requested_amount < 1:
+            return JsonResponse(
+                {"error": "Please enter an amount of at least ₱1."},
+                status=400
+            )
 
+        # 3) ensure user exists and is a beneficiary
+        user = get_object_or_404(User, pk=beneficiary_id, role="beneficiary")
 
-@method_decorator(login_required, name="dispatch")
-class KioskBeneficiaryProcessingView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/processing.html")
+        # 4) create the claim
+        try:
+            claim = create_claim(
+                user_id=beneficiary_id,
+                need_type=need_type,
+                requested_amount=requested_amount,
+            )
+        except Exception:
+            return JsonResponse(
+                {"error": "Unable to create claim. Please try again."},
+                status=500
+            )
 
-    def post(self, request):
-        return redirect(reverse("kiosk_beneficiary_pending"))
-
-
-@method_decorator(login_required, name="dispatch")
-class KioskBeneficiaryPendingView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/pending.html")
-
-
-@method_decorator(login_required, name="dispatch")
-class KioskBeneficiaryAutoPaidView(View):
-    def get(self, request):
-        return render(request, "kiosk/beneficiary/auto_paid.html")
-
-
+        # 5) success → pending
+        return JsonResponse({
+            "status": "pending",
+            "claim_id": claim.id
+        }, status=200)
 # -----------------------------------------------------------------------------
 # 4. BENEFICIARY WEB PORTAL VIEWS (unchanged)
 # -----------------------------------------------------------------------------
@@ -403,7 +484,7 @@ class BeneficiaryWebRegisterView(View):
         username = data.get("username")
         password = data.get("password")
         confirm_pw = data.get("confirm_password")
-        email = data.get("email")
+        email = data.get("email", "")
         phone = data.get("phone", "")
         first_name = data.get("first_name", "")
         last_name = data.get("last_name", "")
@@ -424,7 +505,6 @@ class BeneficiaryWebRegisterView(View):
         )
         login(request, beneficiary)
         return redirect(reverse("web_beneficiary_dashboard"))
-
 
 class BeneficiaryWebLoginView(View):
     def get(self, request):
@@ -447,7 +527,6 @@ def beneficiary_web_logout(request):
     logout(request)
     return redirect(reverse("web"))
 
-
 @method_decorator(login_required, name="dispatch")
 class BeneficiaryWebDashboardView(View):
     def get(self, request):
@@ -455,38 +534,146 @@ class BeneficiaryWebDashboardView(View):
             return redirect(reverse("web_beneficiary_login"))
 
         beneficiary = request.user
-        claims = list_all_claims().filter(user=beneficiary)
+        # all claims for this beneficiary
+        qs = Claim.objects.filter(user=beneficiary)
+
+        # aggregate basic counts
+        totals = qs.aggregate(
+            total_claims=Count("id"),
+            pending_claims=Count("id", filter=Q(status="pending")),
+            approved_claims=Count("id", filter=Q(status="approved")),
+            rejected_claims=Count("id", filter=Q(status="rejected")),
+            total_requested=Sum("requested_amount"),
+            total_approved=Sum("requested_amount", filter=Q(status="approved")),
+        )
+
+        # optional: breakdown by need type
+        needs = qs.values("need_type").annotate(
+          total_count=Count("id"),
+          total_amount=Sum("requested_amount"),
+          approved_count=Count("id", filter=Q(status="approved")),
+          approved_amount=Sum("requested_amount", filter=Q(status="approved")),
+          rejected_count=Count("id", filter=Q(status="rejected")),
+          rejected_amount=Sum("requested_amount", filter=Q(status="rejected")),
+          pending_count=Count("id", filter=Q(status="pending")),
+          pending_amount=Sum("requested_amount", filter=Q(status="pending")),
+        )
+
+        # build summary cards
+        summary_stats = [
+          {"label": "Total Claims", "value": totals["total_claims"] or 0},
+          {"label": "Pending Claims", "value": totals["pending_claims"] or 0},
+          {"label": "Approved Claims", "value": totals["approved_claims"] or 0},
+          {"label": "Rejected Claims", "value": totals["rejected_claims"] or 0},
+          {"label": "Total Requested (₱)", "value": totals["total_requested"] or 0},
+          {"label": "Total Approved and Received (₱)", "value": totals["total_approved"] or 0},
+        ]
+
+        # build method (need-type) cards
+        method_stats = []
+        ICON_MAP = {
+          "food": "bi-cup-straw",
+          "school_supplies": "bi-book",
+          "transport": "bi-bus-front",
+          "rent": "bi-house",
+        }
+        for n in needs:
+          method_stats.append({
+            "label": n["need_type"].replace("_", " ").title(),
+            "icon": ICON_MAP.get(n["need_type"], "bi-tag"),
+            "total": {
+              "count": n["total_count"] or 0,
+              "amount": n["total_amount"] or 0,
+            },
+            "approved": {
+              "count": n["approved_count"] or 0,
+              "amount": n["approved_amount"] or 0,
+            },
+            "rejected": {
+              "count": n["rejected_count"] or 0,
+              "amount": n["rejected_amount"] or 0,
+            },
+            "pending": {
+              "count": n["pending_count"] or 0,
+              "amount": n["pending_amount"] or 0,
+            },
+          })
+
         return render(request, "web/beneficiary/dashboard.html", {
-            "balance": beneficiary.current_balance,
-            "claims": claims,
+          "balance": beneficiary.current_balance,
+          "claims": qs,
+          "summary_stats": summary_stats,
+          "method_stats": method_stats,
+          "is_flex": True,
+          "content_navbar": True,
+          "is_navbar": True,
+          "is_menu": False,
+          "is_footer": True,
+          "navbar_detached": True,
+          "layout_path": "layout/layout_vertical.html",
         })
 
-
-@method_decorator(login_required, name="dispatch")
-class BeneficiaryWebNewRequestView(View):
-    def get(self, request):
-        return render(request, "web/beneficiary/new_request.html")
-
+@method_decorator([login_required, csrf_exempt], name="dispatch")
+class BeneficiaryFaceVerifyView(View):
     def post(self, request):
+        photo = request.FILES.get("photo")
+        if not photo:
+            return JsonResponse({"error": "Photo required"}, status=400)
+
+        # Save upload to temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
+            for chunk in photo.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        # Load & encode
         try:
-            need_type = request.POST.get("need_type")
-            amount = float(request.POST.get("requested_amount", "0"))
-            if amount <= 0 or need_type not in dict(Claim.NEED_CHOICES).keys():
+            img = Image.open(tmp_path).convert("RGB")
+            arr = np.array(img)
+            encs = face_recognition.face_encodings(arr)
+            if not encs:
+                return JsonResponse({"error": "No face detected"}, status=400)
+            uploaded = encs[0]
+        except Exception as e:
+            return JsonResponse({"error": f"Invalid image: {e}"}, status=400)
+
+        # Compare against this user’s registration photos
+        user = request.user
+        for up in user.photos.filter(photo_type="registration"):
+            try:
+                reg_img = Image.open(up.photo.path).convert("RGB")
+                reg_arr = np.array(reg_img)
+                reg_encs = face_recognition.face_encodings(reg_arr)
+                if reg_encs and face_recognition.compare_faces([reg_encs[0]], uploaded)[0]:
+                    return JsonResponse({"success": True})
+            except Exception:
+                continue
+
+        return JsonResponse({"error": "Face did not match"}, status=400)
+
+@method_decorator(csrf_exempt, name="dispatch")
+class BeneficiaryWebNewRequestView(View):
+    def post(self, request):
+        data = json.loads(request.body)
+        need_type = data.get("need_type")
+        amount = data.get("requested_amount", 0)
+        try:
+            amount = float(amount)
+            valid_needs = dict(Claim.NEED_CHOICES).keys()
+            if amount <= 0 or need_type not in valid_needs:
                 raise ValueError
-        except ValueError:
-            return HttpResponseBadRequest("Invalid data.")
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid data"}, status=400)
 
         create_claim(user_id=request.user.id, need_type=need_type, requested_amount=amount)
-        return redirect(reverse("web_beneficiary_dashboard"))
+        return JsonResponse({"success": True})
 
 
 # -----------------------------------------------------------------------------
 # 5. ADMIN DASHBOARD VIEWS (unchanged)
 # -----------------------------------------------------------------------------
-
 def is_admin(user):
     return user.is_authenticated and user.role == "admin"
-
 
 class AdminLoginView(View):
   def get(self, request):
@@ -519,38 +706,126 @@ def admin_logout(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    today = timezone.now().date()
-    total_today = sum(d.amount for d in Donation.objects.filter(created_at__date=today))
-    week_start = today - timezone.timedelta(days=7)
-    total_week = sum(d.amount for d in Donation.objects.filter(created_at__gte=week_start))
-    month_start = today.replace(day=1)
-    total_month = sum(d.amount for d in Donation.objects.filter(created_at__gte=month_start))
+  # midnight today in local time
+  now = timezone.localtime(timezone.now())
+  start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+  start_of_tomorrow = start_of_today + datetime.timedelta(days=1)
 
-    coin_total = sum(d.amount for d in Donation.objects.filter(method="coin"))
-    gcash_total = sum(d.amount for d in Donation.objects.filter(method="gcash"))
+  week_start = start_of_today - datetime.timedelta(days=7)
+  month_start = start_of_today.replace(day=1)
 
-    pending_claims_count = Claim.objects.filter(status="pending").count()
-    coin_box = get_coin_box_status()
-
-    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
-
-    return render(request, "admin/dashboard.html", {
-        "total_today": total_today,
-        "total_week": total_week,
-        "total_month": total_month,
-        "coin_total": coin_total,
-        "gcash_total": gcash_total,
-        "pending_claims_count": pending_claims_count,
-        "coin_box": coin_box,
-        "is_flex": True,
-        "content_navbar": True,
-        "is_navbar": True,
-        "is_menu": True,
-        "is_footer": True,
-        "navbar_detached": True,
-        "menu_data": menu_data,
-        "layout_path" : "layout/layout_vertical.html"
+  period_defs = [
+    # explicit datetime ranges instead of __date
+    (
+      "today",
+      "Today",
+      Q(created_at__gte=start_of_today, created_at__lt=start_of_tomorrow),
+    ),
+    (
+      "week",
+      "Last 7 Days",
+      Q(created_at__gte=week_start, created_at__lt=start_of_tomorrow),
+    ),
+    (
+      "month",
+      "This Month",
+      Q(created_at__gte=month_start, created_at__lt=start_of_tomorrow),
+    ),
+  ]
+  period_stats = []
+  for key, label, filt in period_defs:
+    qs = Donation.objects.filter(filt)
+    period_stats.append({
+      "key": key,
+      "label": label,
+      "count": qs.count(),
+      "amount": qs.aggregate(total=Sum("amount"))["total"] or 0,
     })
+
+  # ─── 2) Donation stats by method ───
+  method_defs = [
+    ("coin", "Coin", "bi-coin"),
+    ("gcash", "GCash", "bi-phone"),
+  ]
+  method_stats = []
+  for key, label, icon in method_defs:
+    qs = Donation.objects.filter(method=key)
+    method_stats.append({
+      "key": key,
+      "label": label,
+      "icon": icon,
+      "count": qs.count(),
+      "amount": qs.aggregate(total=Sum("amount"))["total"] or 0,
+    })
+
+  # ─── 3) Pending claims ───
+  pending_qs = Claim.objects.filter(status="pending")
+  pending_claims = {
+    "count": pending_qs.count(),
+    "amount": pending_qs.aggregate(total=Sum("requested_amount"))["total"] or 0,
+  }
+
+  # ─── 4) Needs breakdown (unchanged) ───
+  needs_qs = Claim.objects.values("need_type").annotate(
+    total_count=Count("id"),
+    total_amount=Sum("requested_amount"),
+    approved_count=Count("id", filter=Q(status="approved")),
+    approved_amount=Sum("requested_amount", filter=Q(status="approved")),
+    rejected_count=Count("id", filter=Q(status="rejected")),
+    rejected_amount=Sum("requested_amount", filter=Q(status="rejected")),
+    pending_count=Count("id", filter=Q(status="pending")),
+    pending_amount=Sum("requested_amount", filter=Q(status="pending")),
+  )
+  LABELS = dict(Claim.NEED_CHOICES)
+  status_defs = [
+    ("total", "Total", "muted"),
+    ("approved", "Approved", "success"),
+    ("rejected", "Rejected", "danger"),
+    ("pending", "Pending", "warning"),
+  ]
+
+  need_stats = []
+  for n in needs_qs:
+    nt = n["need_type"]
+    breakdown = []
+    for key, label, color in status_defs:
+      breakdown.append({
+        "status": label,
+        "count": n[f"{key}_count"],
+        "amount": n[f"{key}_amount"] or 0,
+        "color": color,
+      })
+    need_stats.append({
+      "label": LABELS[nt],
+      "breakdown": breakdown,
+    })
+
+  # ─── 5) Coin box ───
+  coin_box = get_coin_box_status()
+  fill_pct = (coin_box.current_count / coin_box.capacity) * 100
+  fill_color = "danger" if fill_pct >= 90 else "warning" if fill_pct >= 70 else "success"
+
+  menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
+
+  return render(request, "admin/dashboard.html", {
+    "period_stats": period_stats,
+    "method_stats": method_stats,
+    "pending_claims": pending_claims,
+    "need_stats": need_stats,
+    "coin_box": coin_box,
+    "fill_percent": round(fill_pct),
+    "fill_color": fill_color,
+
+    # layout flags
+    "is_flex": True,
+    "content_navbar": True,
+    "is_navbar": True,
+    "is_menu": True,
+    "is_footer": True,
+    "navbar_detached": True,
+    "menu_data": menu_data,
+    "layout_path": "layout/layout_vertical.html",
+  })
 
 
 @login_required
@@ -572,6 +847,7 @@ def admin_donors_page(request):
       "layout_path": "layout/layout_vertical.html"
     })
 
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
 def admin_donor_update(request, donor_id):
@@ -580,86 +856,6 @@ def admin_donor_update(request, donor_id):
     POST: Update those fields. Return {"success": true} on success.
     """
     donor = get_object_or_404(User, id=donor_id, role="donor")
-
-    if request.method == "GET":
-        data = {
-            "first_name": donor.first_name,
-            "last_name": donor.last_name,
-            "email": donor.email,
-            "phone": donor.phone or "",
-        }
-        return JsonResponse(data)
-
-    elif request.method == "POST":
-        first_name = request.POST.get("first_name", "").strip()
-        last_name = request.POST.get("last_name", "").strip()
-        email = request.POST.get("email", "").strip()
-        phone = request.POST.get("phone", "").strip()
-
-        # Basic validation (you can extend as needed)
-        if not email:
-            return JsonResponse({"error": "Email is required."}, status=400)
-        if not first_name:
-            return JsonResponse({"error": "First name is required."}, status=400)
-        if not last_name:
-            return JsonResponse({"error": "Last name is required."}, status=400)
-
-        donor.first_name = first_name
-        donor.last_name = last_name
-        donor.email = email
-        donor.phone = phone
-        donor.save()
-
-        return JsonResponse({"success": True})
-
-    else:
-        return HttpResponseBadRequest("Invalid method.")
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_donor_delete(request, donor_id):
-    """
-    POST: Deletes the donor. Return {"success": true} on success.
-    """
-    donor = get_object_or_404(User, id=donor_id, role="donor")
-
-    if request.method == "POST":
-        donor.delete()
-        return JsonResponse({"success": True})
-    else:
-        return HttpResponseBadRequest("Invalid method.")
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_beneficiaries_page(request):
-    beneficiaries = list_all_beneficiaries()
-
-    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
-
-    return render(request, "admin/beneficiaries.html", {
-      "beneficiaries": beneficiaries,
-      "is_flex": True,
-      "content_navbar": True,
-      "is_navbar": True,
-      "is_menu": True,
-      "is_footer": True,
-      "navbar_detached": True,
-      "menu_data": menu_data,
-      "layout_path": "layout/layout_vertical.html"
-    })
-
-
-
-@login_required
-@user_passes_test(is_admin)
-def admin_beneficiaries_update(request, beneficiaryId):
-    """
-    GET: Return JSON with the donor's current data (first_name, last_name, email, phone).
-    POST: Update those fields. Return {"success": true} on success.
-    """
-    donor = get_object_or_404(User, id=beneficiaryId, role="beneficiary")
 
     if request.method == "GET":
         data = {
@@ -701,8 +897,95 @@ def admin_beneficiaries_update(request, beneficiaryId):
     else:
         return HttpResponseBadRequest("Invalid method.")
 
+
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
+def admin_donor_delete(request, donor_id):
+    """
+    POST: Deletes the donor. Return {"success": true} on success.
+    """
+    donor = get_object_or_404(User, id=donor_id, role="donor")
+
+    if request.method == "POST":
+        donor.delete()
+        return JsonResponse({"success": True})
+    else:
+        return HttpResponseBadRequest("Invalid method.")
+
+@login_required
+@user_passes_test(is_admin)
+def admin_beneficiaries_page(request):
+    beneficiaries = list_all_beneficiaries()
+
+    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
+
+    return render(request, "admin/beneficiaries.html", {
+      "beneficiaries": beneficiaries,
+      "is_flex": True,
+      "content_navbar": True,
+      "is_navbar": True,
+      "is_menu": True,
+      "is_footer": True,
+      "navbar_detached": True,
+      "menu_data": menu_data,
+      "layout_path": "layout/layout_vertical.html"
+    })
+
+
+@csrf_exempt
+@login_required
+@user_passes_test(is_admin)
+def admin_beneficiaries_update(request, beneficiaryId):
+    """
+    GET: Return JSON with the donor's current data (first_name, last_name, email, phone).
+    POST: Update those fields. Return {"success": true} on success.
+    """
+    beneficiary = get_object_or_404(User, id=beneficiaryId, role="beneficiary")
+
+    if request.method == "GET":
+        data = {
+            "first_name": beneficiary.first_name,
+            "last_name": beneficiary.last_name,
+            "email": beneficiary.email,
+            "phone": beneficiary.phone or "",
+        }
+        return JsonResponse(data)
+
+    elif request.method == "POST":
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        password = request.POST.get("password")
+        confirm_pw = request.POST.get("confirm_password")
+
+        # Basic validation (you can extend as needed)
+        if not email:
+            return JsonResponse({"error": "Email is required."}, status=400)
+        if not first_name:
+            return JsonResponse({"error": "First name is required."}, status=400)
+        if not last_name:
+            return JsonResponse({"error": "Last name is required."}, status=400)
+
+        beneficiary.first_name = first_name
+        beneficiary.last_name = last_name
+        beneficiary.email = email
+        beneficiary.phone = phone
+        if password:
+          if password != confirm_pw:
+            return JsonResponse({"error": "Passwords do not match."}, status=400)
+          beneficiary.set_password(password)
+        beneficiary.save()
+
+        return JsonResponse({"success": True})
+
+    else:
+        return HttpResponseBadRequest("Invalid method.")
+
+@login_required
+@user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_beneficiaries_delete(request, beneficiaryId):
     """
     POST: Deletes the donor. Return {"success": true} on success.
@@ -715,68 +998,122 @@ def admin_beneficiaries_delete(request, beneficiaryId):
     else:
         return HttpResponseBadRequest("Invalid method.")
 
-
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
 def admin_donations_log(request):
     method = request.GET.get("method")
     status = request.GET.get("status")
     donations = list_all_donations(method=method, status=status)
-    return render(request, "admin/donations_log.html", {"donations": donations})
+
+    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
+    return render(request, "admin/donations_log.html", {
+        "donations": donations,
+        "is_flex": True,
+        "content_navbar": True,
+        "is_navbar": True,
+        "is_menu": True,
+        "is_footer": True,
+        "navbar_detached": True,
+        "menu_data": menu_data,
+        "layout_path": "layout/layout_vertical.html"
+    })
 
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_donation_action(request, donation_id):
-    donation = get_object_or_404(Donation, id=donation_id)
-    if donation.status != "pending":
-        return HttpResponseBadRequest("Donation not pending.")
+  if request.method != "POST":
+    return HttpResponseBadRequest("Invalid request method.")
 
-    action = request.POST.get("action")
-    reason = request.POST.get("reason", "").strip()
-    if action == "approve":
-        update_donation_status(donation_id=donation_id, new_status="confirmed", admin_user_id=request.user.id)
-    elif action == "reject":
-        update_donation_status(donation_id=donation_id, new_status="pending", admin_user_id=request.user.id, notes=reason)
-    else:
-        return HttpResponseBadRequest("Invalid action.")
-    return JsonResponse({"success": True})
+  donation = get_object_or_404(Donation, id=donation_id)
+  if donation.status != "pending":
+    return HttpResponseBadRequest("Donation not pending.")
 
+  action = request.POST.get("action")
+  reason = request.POST.get("reason", "").strip()
 
+  if action == "approve":
+    update_donation_status(donation_id=donation_id, new_status="confirmed", admin_user_id=request.user.id)
+  elif action == "reject":
+    update_donation_status(donation_id=donation_id, new_status="rejected", admin_user_id=request.user.id, notes=reason)
+  else:
+    return HttpResponseBadRequest("Invalid action.")
+
+  return JsonResponse({"success": True})
+
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
 def admin_claims_log(request):
+    """
+    Renders the Claims Log page with all claims.
+    Mirrors the donors-log view: server-renders a table,
+    DataTable features are added in JS.
+    """
     need_type = request.GET.get("need_type")
     status = request.GET.get("status")
     claims = list_all_claims(need_type=need_type, status=status)
-    return render(request, "admin/claims_log.html", {"claims": claims})
 
+    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
+    return render(request, "admin/claims_log.html", {
+          "claims": claims,
+          "is_flex": True,
+          "content_navbar": True,
+          "is_navbar": True,
+          "is_menu": True,
+          "is_footer": True,
+          "navbar_detached": True,
+          "menu_data": menu_data,
+          "layout_path": "layout/layout_vertical.html"
+    })
 
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
 def admin_claim_action(request, claim_id):
-    claim = get_object_or_404(Claim, id=claim_id)
-    if claim.status != "pending":
-        return HttpResponseBadRequest("Claim not pending.")
+  """
+  AJAX endpoint to approve or reject a pending claim.
+  """
+  claim = get_object_or_404(Claim, id=claim_id)
+  if claim.status != "pending":
+    return HttpResponseBadRequest("Claim not pending.")
 
-    action = request.POST.get("action")
+  action = request.POST.get("action")
+
+  if action == "approve":
+    ref = request.POST.get("reference_number", "").strip()
+    if not ref:
+      return HttpResponseBadRequest("Reference number required.")
+    # Pass the reference number into your service
+    update_claim_status(
+      claim_id=claim_id,
+      new_status="approved",
+      admin_user_id=request.user.id,
+      gcash_payout_id=ref
+    )
+
+  elif action == "reject":
     reason = request.POST.get("reason", "").strip()
-    if action == "approve":
-        update_claim_status(claim_id=claim_id, new_status="approved", admin_user_id=request.user.id, reason=reason)
-    elif action == "reject":
-        update_claim_status(claim_id=claim_id, new_status="rejected", admin_user_id=request.user.id, reason=reason)
-    elif action == "manual_pay":
-        payout_id = request.POST.get("gcash_payout_id", "").strip()
-        if not payout_id:
-            return HttpResponseBadRequest("Missing payout ID.")
-        update_claim_status(claim_id=claim_id, new_status="paid", admin_user_id=request.user.id, gcash_payout_id=payout_id)
-    else:
-        return HttpResponseBadRequest("Invalid action.")
-    return JsonResponse({"success": True})
+    if not reason:
+      return HttpResponseBadRequest("Rejection reason required.")
+    update_claim_status(
+      claim_id=claim_id,
+      new_status="rejected",
+      admin_user_id=request.user.id,
+      reason=reason
+    )
+
+  else:
+    return HttpResponseBadRequest("Invalid action.")
+
+  return JsonResponse({"success": True})
 
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_coin_box_page(request):
     coin_box = get_coin_box_status()
     alert = coin_box.current_count >= 0.75 * coin_box.capacity
@@ -788,6 +1125,7 @@ def admin_coin_box_page(request):
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_coin_box_reset(request):
     if request.method == "POST":
         reset_coin_box(admin_user_id=request.user.id)
@@ -796,12 +1134,14 @@ def admin_coin_box_reset(request):
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_reports_page(request):
     return render(request, "admin/reports.html")
 
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_settings_page(request):
     admins = list_all_admins()
     coin_box = get_coin_box_status()
@@ -813,6 +1153,7 @@ def admin_settings_page(request):
 
 @login_required
 @user_passes_test(is_admin)
+@method_decorator(csrf_exempt, name="dispatch")
 def admin_audit_logs_page(request):
     logs = list_audit_logs()
     return render(request, "admin/audit_logs.html", {"logs": logs})

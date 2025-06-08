@@ -146,11 +146,11 @@ LANGUAGES = [
 # ! Make sure you have cleared the browser cache after changing the default language
 LANGUAGE_CODE = "en"
 
-TIME_ZONE = "UTC"
-
 USE_I18N = False
 
 USE_TZ = True
+
+TIME_ZONE = "Asia/Manila"
 
 LOCALE_PATHS = [
     BASE_DIR / "locale",

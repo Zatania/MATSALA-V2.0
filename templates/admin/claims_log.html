@@ -1,0 +1,111 @@
+{% extends layout_path %}
+{% load static i18n %}
+
+{% block title %}Claims Log{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-bs5/datatables.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/datatables-buttons-bs5/buttons.bootstrap5.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/sweetalert2/sweetalert2.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/moment/moment.js' %}"></script>
+<script src="{% static 'vendor/libs/datatables-bs5/datatables-bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/sweetalert2/sweetalert2.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/claims-log.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 class="card-title mb-0">Claims Log</h5>
+    </div>
+    <div class="card-datatable table-responsive">
+      <table class="datatables-claims table w-100">
+        <thead class="table-light">
+          <tr class="text-nowrap">
+            <th>Claimant</th>
+            <th>Requested Amount</th>
+            <th>Status</th>
+            <th>Submitted</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for claim in claims %}
+          <tr data-claim-id="{{ claim.id }}">
+            <td>{{ claim.user.first_name }} {{ claim.user.last_name }}</td>
+            <td>₱ {{ claim.requested_amount }}</td>
+            <td>{{ claim.status|title }}</td>
+            <td>{{ claim.created_at|date:"F j, Y g:i A" }}</td>
+            <td>
+              {% if claim.status == 'pending' %}
+              <div class="btn-group" role="group">
+                <button type="button" class="btn btn-sm btn-success approve-claim">Approve</button>
+                <button type="button" class="btn btn-sm btn-danger reject-claim">Reject</button>
+              </div>
+              {% else %}
+              <span class="badge bg-label-secondary">No Actions</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Approve Claim</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-floating form-floating-outline mb-3">
+          <input type="text" id="approveRefInput" class="form-control" placeholder="Reference Number">
+          <label for="approveRefInput">Reference Number</label>
+        </div>
+        <div id="approveError" class="text-danger small" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="approveConfirmBtn" class="btn btn-success" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reject Claim</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-floating form-floating-outline mb-3">
+          <textarea id="rejectReasonInput" class="form-control" placeholder="Reason for rejection" rows="3"></textarea>
+          <label for="rejectReasonInput">Reason</label>
+        </div>
+        <div id="rejectError" class="text-danger small" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="rejectConfirmBtn" class="btn btn-danger" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock content %}

@@ -3,6 +3,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentFirstName = '';
   let currentNeedType = '';
 
+  // Modal instances
+  const authModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('authModal'));
+  const needSelectionModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal'));
+  const requestDetailsModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('requestDetailsModal'));
+  const processingModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('processingModal'));
+  const confirmationPaidModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmationPaidModal'));
+  const confirmationPendingModal = bootstrap.Modal.getOrCreateInstance(
+    document.getElementById('confirmationPendingModal')
+  );
+
   const authModalEl = document.getElementById('authModal');
   const faceScanSection = document.getElementById('faceScanSection');
   const loginSection = document.getElementById('loginSection');
@@ -29,267 +39,255 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnViewClaimStatusPaid = document.getElementById('btnViewClaimStatusPaid');
   const btnFinishPending = document.getElementById('btnFinishPending');
 
-  let triggerMode = null; // "face" or "login"
+  let triggerMode = null; // 'face' or 'login'
 
   /* ---------------------------------------------------------
-       Main Buttons → Set triggerMode & then show authModal
+       Camera Stream
+     --------------------------------------------------------- */
+  let cameraStream = null;
+  function startCamera() {
+    return navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then(stream => {
+        cameraStream = stream;
+        faceVideo.srcObject = stream;
+        return faceVideo.play();
+      })
+      .catch(err => {
+        console.error('Camera error', err);
+        faceCaptureError.innerText = 'Cannot access camera.';
+        faceCaptureError.style.display = 'block';
+      });
+  }
+  function stopCamera() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(t => t.stop());
+      cameraStream = null;
+    }
+  }
+
+  /* ---------------------------------------------------------
+       Main Buttons
      --------------------------------------------------------- */
   document.getElementById('btnMainFaceScan').addEventListener('click', () => {
     triggerMode = 'face';
-    // Now that triggerMode is set, show the modal:
-    bootstrap.Modal.getOrCreateInstance(authModalEl).show();
+    authModal.show();
   });
-
   document.getElementById('btnMainLogin').addEventListener('click', () => {
     triggerMode = 'login';
-    bootstrap.Modal.getOrCreateInstance(authModalEl).show();
+    authModal.show();
   });
 
   /* ---------------------------------------------------------
-       When authModal is about to be shown → toggle sections
+       Toggle Auth Sections
      --------------------------------------------------------- */
   authModalEl.addEventListener('show.bs.modal', () => {
-    if (triggerMode === 'face') {
-      faceScanSection.classList.remove('d-none');
-      loginSection.classList.add('d-none');
-    } else if (triggerMode === 'login') {
-      faceScanSection.classList.add('d-none');
-      loginSection.classList.remove('d-none');
-    }
-    // Reset any prior error messages & hide camera container
     faceCaptureError.style.display = 'none';
     loginError.style.display = 'none';
     faceCaptureContainer.classList.add('d-none');
     loginUsername.value = '';
     loginPassword.value = '';
     btnLoginSubmit.disabled = true;
+
+    if (triggerMode === 'face') {
+      faceScanSection.classList.remove('d-none');
+      loginSection.classList.add('d-none');
+    } else {
+      faceScanSection.classList.add('d-none');
+      loginSection.classList.remove('d-none');
+    }
   });
+  authModalEl.addEventListener('hidden.bs.modal', stopCamera);
 
   /* ---------------------------------------------------------
-       Authentication Modal Logic
+       Face Scan Logic
      --------------------------------------------------------- */
-  // 1. “Scan Face” button inside authModal → show camera preview
   btnShowFaceScan.addEventListener('click', () => {
     faceCaptureError.style.display = 'none';
     faceCaptureContainer.classList.remove('d-none');
-
-    navigator.mediaDevices
-      .getUserMedia({ video: true })
-      .then(stream => {
-        faceVideo.srcObject = stream;
-      })
-      .catch(e => {
-        faceCaptureError.innerText = 'Cannot access camera.';
-        faceCaptureError.style.display = 'block';
-      });
+    startCamera();
   });
 
   btnRetryFace.addEventListener('click', () => {
     faceCaptureError.style.display = 'none';
-    // Keep camera open
+    const spinner = document.getElementById('faceMatchSpinner');
+    if (spinner) spinner.style.display = 'none';
+    stopCamera();
+    startCamera();
   });
 
   btnCaptureFace.addEventListener('click', () => {
+    function getCookie(name) {
+      const v = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+      return v ? decodeURIComponent(v.split('=')[1]) : null;
+    }
+    const csrfToken = getCookie('csrftoken');
+    faceCaptureError.style.display = 'none';
+    const spinner = document.getElementById('faceMatchSpinner');
+    if (spinner) spinner.style.display = 'block';
+
+    // capture
     const canvas = document.createElement('canvas');
     canvas.width = faceVideo.videoWidth;
     canvas.height = faceVideo.videoHeight;
     canvas.getContext('2d').drawImage(faceVideo, 0, 0);
+    canvas.toBlob(async blob => {
+      stopCamera();
+      const formData = new FormData();
+      formData.append('photo', blob, 'capture.jpg');
 
-    canvas.toBlob(blob => {
-      // ─── DEMO: STUBBED FACE-MATCH ─────────────────────────────────────────────
-      currentBeneficiaryId = 123;
-      currentFirstName = 'Juan';
-      beneficiaryFirstNameEl.innerText = currentFirstName;
-
-      // Stop camera preview
-      const tracks = faceVideo.srcObject.getTracks();
-      tracks.forEach(t => t.stop());
-
-      // Close authModal → open needSelectionModal
-      bootstrap.Modal.getInstance(authModalEl).hide();
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal')).show();
-      // ──────────────────────────────────────────────────────────────────────────
-      //
-      // // REAL IMPLEMENTATION:
-      // const formData = new FormData();
-      // formData.append('image', blob, 'capture.png');
-      // fetch('/api/face-match/', {
-      //   method: 'POST',
-      //   body: formData
-      // })
-      //   .then(res => res.json())
-      //   .then(data => {
-      //     if (data.match && data.score >= 0.8) {
-      //       currentBeneficiaryId = data.beneficiary_id;
-      //       currentFirstName = data.first_name;
-      //       beneficiaryFirstNameEl.innerText = currentFirstName;
-      //       faceVideo.srcObject.getTracks().forEach(t => t.stop());
-      //       bootstrap.Modal.getInstance(authModalEl).hide();
-      //       bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal')).show();
-      //     } else {
-      //       faceCaptureError.style.display = 'block';
-      //     }
-      //   });
-    });
+      try {
+        const res = await fetch('/kiosk/beneficiary/facial-recog/', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'X-CSRFToken': csrfToken },
+          body: formData
+        });
+        if (spinner) spinner.style.display = 'none';
+        const data = await res.json();
+        if (data.success) {
+          // store and proceed
+          currentBeneficiaryId = data.beneficiary_id;
+          currentFirstName = data.first_name;
+          beneficiaryFirstNameEl.innerText = currentFirstName;
+          authModal.hide();
+          needSelectionModal.show();
+        } else {
+          faceCaptureError.innerText = data.error || 'Face not recognized.';
+          faceCaptureError.style.display = 'block';
+        }
+      } catch (err) {
+        if (spinner) spinner.style.display = 'none';
+        faceCaptureError.innerText = 'Error processing photo.';
+        faceCaptureError.style.display = 'block';
+      }
+    }, 'image/jpeg');
   });
 
   /* ---------------------------------------------------------
-       Login Form Validation & Submission
+       Login Logic
      --------------------------------------------------------- */
-  [loginUsername, loginPassword].forEach(input => {
-    input.addEventListener('input', () => {
-      btnLoginSubmit.disabled = !(loginUsername.value && loginPassword.value);
-    });
-  });
-
-  document.getElementById('loginForm').addEventListener('submit', e => {
+  [loginUsername, loginPassword].forEach(inp =>
+    inp.addEventListener('input', () => (btnLoginSubmit.disabled = !(loginUsername.value && loginPassword.value)))
+  );
+  document.getElementById('loginForm').addEventListener('submit', async e => {
     e.preventDefault();
     loginError.style.display = 'none';
 
-    // ─── DEMO: STUBBED LOGIN ────────────────────────────────────────────────────
-    currentBeneficiaryId = 123;
-    currentFirstName = 'Juan';
-    beneficiaryFirstNameEl.innerText = currentFirstName;
+    try {
+      const res = await fetch('/kiosk/beneficiary/login/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          username: loginUsername.value.trim(),
+          password: loginPassword.value
+        })
+      });
 
-    bootstrap.Modal.getInstance(authModalEl).hide();
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal')).show();
-    // ──────────────────────────────────────────────────────────────────────────
-    //
-    // // REAL IMPLEMENTATION:
-    // fetch('/api/login-beneficiary/', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     username: loginUsername.value,
-    //     password: loginPassword.value
-    //   })
-    // })
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     if (data.success) {
-    //       currentBeneficiaryId = data.beneficiary_id;
-    //       currentFirstName = data.first_name;
-    //       beneficiaryFirstNameEl.innerText = currentFirstName;
-    //       bootstrap.Modal.getInstance(authModalEl).hide();
-    //       bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal')).show();
-    //     } else {
-    //       loginError.style.display = 'block';
-    //     }
-    //   });
+      if (!res.ok) {
+        // show inline error
+        loginError.style.display = 'block';
+        return;
+      }
+
+      const data = await res.json();
+      currentBeneficiaryId = data.beneficiary_id;
+      currentFirstName = data.first_name;
+      beneficiaryFirstNameEl.innerText = currentFirstName;
+
+      authModal.hide();
+      needSelectionModal.show();
+    } catch {
+      loginError.innerText = 'Network error, try again.';
+      loginError.style.display = 'block';
+    }
   });
 
   /* ---------------------------------------------------------
-       Need Selection Logic
+       Need Selection
      --------------------------------------------------------- */
-  needButtons.forEach(btn => {
+  needButtons.forEach(btn =>
     btn.addEventListener('click', () => {
       currentNeedType = btn.getAttribute('data-need');
-      const mapping = {
+      const labels = {
         food: 'Food Assistance',
         school_supplies: 'School Supplies',
         transport: 'Transport',
         rent: 'Rent'
       };
-      selectedNeedLabel.innerText = mapping[currentNeedType];
-      bootstrap.Modal.getInstance(document.getElementById('needSelectionModal')).hide();
-      bootstrap.Modal.getOrCreateInstance(document.getElementById('requestDetailsModal')).show();
-    });
-  });
+      selectedNeedLabel.innerText = labels[currentNeedType];
+      needSelectionModal.hide();
+      requestDetailsModal.show();
+    })
+  );
 
   /* ---------------------------------------------------------
-       Request Details Logic
+       Request Details
      --------------------------------------------------------- */
-  requestedAmount.addEventListener('input', () => {
-    btnSubmitRequest.disabled = !(parseInt(requestedAmount.value) >= 1);
-  });
+  requestedAmount.addEventListener(
+    'input',
+    () => (btnSubmitRequest.disabled = !(parseInt(requestedAmount.value) >= 1))
+  );
 
-  btnSubmitRequest.addEventListener('click', () => {
+  btnSubmitRequest.addEventListener('click', async () => {
     const amount = parseInt(requestedAmount.value);
-    const note = document.getElementById('optionalNote').value;
 
-    // ─── DEMO: Simulate Claim Submission & Auto-Payout ───────────────────────
-    bootstrap.Modal.getInstance(document.getElementById('requestDetailsModal')).hide();
-    bootstrap.Modal.getOrCreateInstance(document.getElementById('processingModal')).show();
+    requestDetailsModal.hide();
+    processingModal.show();
 
-    setTimeout(() => {
-      const autoPayoutEnabled = true;
-      const fundsAvailable = true;
+    try {
+      const res = await fetch('/kiosk/beneficiary/submit-claim/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', credentials: 'same-origin' },
+        body: JSON.stringify({
+          beneficiary_id: currentBeneficiaryId,
+          need_type: currentNeedType,
+          requested_amount: amount
+        })
+      });
 
-      if (autoPayoutEnabled && fundsAvailable) {
-        const fakePayoutId = 'GCASH123456';
-        document.getElementById('paidAmount').innerText = amount.toFixed(2);
-        document.getElementById('gcashPayoutId').innerText = fakePayoutId;
-        bootstrap.Modal.getInstance(document.getElementById('processingModal')).hide();
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmationPaidModal')).show();
-      } else {
-        bootstrap.Modal.getInstance(document.getElementById('processingModal')).hide();
-        bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmationPendingModal')).show();
+      processingModal.hide();
+      if (!res.ok) {
+        let errMsg = 'Unknown error.';
+
+        try {
+          const err = await res.json();
+          errMsg = err.error || errMsg;
+        } catch {}
+        document.getElementById('errorMessage').innerText = errMsg;
+        new bootstrap.Modal(document.getElementById('errorModal')).show();
+        return;
       }
-    }, 3000);
-    // ─────────────────────────────────────────────────────────────────────────
-    //
-    // // REAL IMPLEMENTATION:
-    // fetch('/api/submit-claim/', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     beneficiary_id: currentBeneficiaryId,
-    //     need_type: currentNeedType,
-    //     requested_amount: amount,
-    //     note: note
-    //   })
-    // })
-    //   .then(res => res.json())
-    //   .then(data => {
-    //     if (data.success) {
-    //       bootstrap.Modal.getInstance(document.getElementById('requestDetailsModal')).hide();
-    //       bootstrap.Modal.getOrCreateInstance(document.getElementById('processingModal')).show();
-    //       handleProcessing(data.claim_id, amount);
-    //     }
-    //   });
+
+      confirmationPendingModal.show();
+    } catch (err) {
+      processingModal.hide();
+      document.getElementById('errorMessage').innerText = 'Network error. Please try again.';
+      new bootstrap.Modal(document.getElementById('errorModal')).show();
+      needSelectionModal.show();
+    }
   });
 
   /* ---------------------------------------------------------
-       Confirmation Buttons Logic
+       Confirmation Buttons & Reset
      --------------------------------------------------------- */
-  btnFinishPaid.addEventListener('click', () => {
-    bootstrap.Modal.getInstance(document.getElementById('confirmationPaidModal')).hide();
-    resetAll();
-  });
-  btnViewClaimStatusPaid.addEventListener('click', () => {
-    bootstrap.Modal.getInstance(document.getElementById('confirmationPaidModal')).hide();
-    resetAll();
-    // Optionally open a “Claim Status” modal
-  });
-  btnFinishPending.addEventListener('click', () => {
-    bootstrap.Modal.getInstance(document.getElementById('confirmationPendingModal')).hide();
-    resetAll();
-  });
-
-  /* ---------------------------------------------------------
-       Utility: Reset Everything to Welcome State
-     --------------------------------------------------------- */
-  function resetAll() {
+  const resetAll = () => {
     currentBeneficiaryId = null;
     currentFirstName = '';
     currentNeedType = '';
-
-    // Hide all active modals
     [
-      'authModal',
-      'needSelectionModal',
-      'requestDetailsModal',
-      'processingModal',
-      'confirmationPaidModal',
-      'confirmationPendingModal'
-    ].forEach(id => {
-      const m = document.getElementById(id);
-      if (bootstrap.Modal.getInstance(m)) {
-        bootstrap.Modal.getInstance(m).hide();
-      }
-    });
-
-    // Reset authentication sections
+      authModal,
+      needSelectionModal,
+      requestDetailsModal,
+      processingModal,
+      confirmationPaidModal,
+      confirmationPendingModal
+    ].forEach(m => m.hide());
+    // reset UI
+    beneficiaryFirstNameEl.innerText = 'User';
     faceCaptureContainer.classList.add('d-none');
     faceCaptureError.style.display = 'none';
     loginSection.classList.add('d-none');
@@ -297,13 +295,15 @@ document.addEventListener('DOMContentLoaded', () => {
     loginUsername.value = '';
     loginPassword.value = '';
     btnLoginSubmit.disabled = true;
-
-    // Reset greeting
-    beneficiaryFirstNameEl.innerText = 'User';
-
-    // Reset request details
     requestedAmount.value = '';
     document.getElementById('optionalNote').value = '';
     btnSubmitRequest.disabled = true;
-  }
+    // restart face flow
+    triggerMode = 'face';
+    authModal.show();
+  };
+
+  btnFinishPaid.addEventListener('click', resetAll);
+  btnViewClaimStatusPaid.addEventListener('click', resetAll);
+  btnFinishPending.addEventListener('click', resetAll);
 });
