@@ -42,7 +42,7 @@ THEME_VARIABLES = {
     "privacy_policy": "#",
     "terms_conditions": "#",
     "contact_us": "#",
-    "template_name": "Materialize",
+    "template_name": "MATSALA v2.0",
     "template_suffix": "Django Admin Template",
     "template_version": "2.0.0",
     "template_free": False,

@@ -1,0 +1,120 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - Admin{% endblock title %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/libs/swiper/swiper.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+<script src="{% static 'vendor/libs/swiper/swiper.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/cards-statistics.css' %}" />
+<link rel="stylesheet" href="{% static 'vendor/css/pages/cards-analytics.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/dashboards-analytics.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="container py-4">
+  <h5 class="mb-3">Transactions Breakdown</h5>
+  <div class="row g-4 mb-5">
+    {# 1) By Period #}
+    {% for stat in period_stats %}
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-uppercase text-secondary">Donations {{ stat.label }}</h6>
+            <p class="h4 fw-bold">₱{{ stat.amount }}</p>
+            <small>{{ stat.count }} transactions</small>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-4 mb-5">
+    {# 2) By Method #}
+    {% for stat in method_stats %}
+      <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body text-center">
+            <h6 class="text-uppercase text-secondary">{{ stat.label }} Donations</h6>
+            <i class="bi {{ stat.icon }} display-4 text-success mb-2"></i>
+            <p class="h4 fw-bold">₱{{ stat.amount }}</p>
+            <small>{{ stat.count }} transactions</small>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    {# Pending Claims #}
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-secondary">Pending Claims</h6>
+          <p class="h4 fw-bold">₱{{ pending_claims.amount }}</p>
+          <small>{{ pending_claims.count }} claims</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# 3) Needs Breakdown #}
+  <h5 class="mb-3">Assistance Needs Breakdown</h5>
+  <div class="row g-4 mb-5">
+    {% for n in need_stats %}
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <h6 class="text-secondary">{{ n.label }}</h6>
+            <div class="row text-center">
+              {% for item in n.breakdown %}
+                <div class="col-6 mb-3">
+                  <small class="text-uppercase text-{{ item.color }}">
+                    {{ item.status }}
+                  </small>
+                  <div class="h6 mb-0">₱{{ item.amount }}</div>
+                  <small>({{ item.count }})</small>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# 4) Coin Box Status #}
+  <h5 class="mb-3">Coin Box Status</h5>
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body text-center">
+          <p class="mb-1">
+            <span class="fs-4 fw-bold text-{{ fill_color }}">{{ coin_box.current_count }}</span>
+            <span class="fw-semibold">/</span>
+            <span class="fs-5 fw-bold text-muted">{{ coin_box.capacity }}</span>
+            <span class="badge bg-{{ fill_color }} ms-2">{{ fill_percent }}%</span>
+          </p>
+          <p class="text-muted">{{ coin_box.message }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -13,7 +13,7 @@
     "eol": "\n",
     "brace_style": "collapse",
     "indent_char": " ",
-    "indent_with_tabs": false,
+    "indent_with_tabs": true,
     "indent_size": 2,
     "indent_level": 0,
     "preserve_newlines": true,

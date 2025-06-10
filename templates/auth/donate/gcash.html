@@ -1,0 +1,69 @@
+{% extends layout_path %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Login{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/pages-auth.js' %}"></script>
+<script src="{% static 'js/ui-popover.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="authentication-wrapper authentication-cover">
+  <!-- Logo -->
+{#  <a href="{% url 'index' %}" class="auth-cover-brand d-flex align-items-center gap-2">#}
+{#    <span class="app-brand-logo demo">{% include 'partials/logo.html' %}</span>#}
+{#    <span class="app-brand-text demo text-heading fw-semibold">{% get_theme_variables 'template_name' %}</span>#}
+{#  </a>#}
+  <!-- /Logo -->
+  <div class="authentication-inner row m-0">
+    <!-- /Left Section -->
+    <div class="d-none d-lg-flex col-lg-7 col-xl-7 align-items-center justify-content-center p-12 pb-2">
+      <img
+        src="{% static 'img/branding/branding.png' %}"
+        class="auth-cover-illustration w-100"
+        alt="welcome illustration"
+      />
+    </div>
+    <!-- /Left Section -->
+
+    <!-- Donate/Need Assistance -->
+    <div class="d-flex col-lg-5 col-xl-5 align-items-center justify-content-center authentication-bg position-relative py-sm-12 px-12 py-6">
+      <div class="w-100" style="max-width: 250px;">
+        <a href="{% url 'donate' %}" class="d-block mb-5 text-center">
+          <button class="btn btn-primary d-flex flex-column align-items-center justify-content-center w-100 py-2" type="submit">
+            <img src="{% static 'img/kiosk/gcash-white.png' %}" alt="Donate" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">GCash QR</span>
+          </button>
+        </a>
+        <a href="{% url 'kiosk' %}" class="d-block text-center">
+          <button class="btn btn-outline-primary d-flex flex-column align-items-center justify-content-center w-100 py-2" type="submit">
+            <img src="{% static 'img/kiosk/goback.png' %}" alt="Login" style="width: 50%; max-width: 125px; height: auto;" />
+            <span class="mt-2">Back</span>
+          </button>
+        </a>
+      </div>
+    </div>
+    <!-- /Donate/Need Assistance -->
+  </div>
+</div>
+{% endblock %}

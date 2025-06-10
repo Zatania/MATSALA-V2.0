@@ -52,36 +52,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "apps.dashboards",
-    "apps.layouts",
-    "apps.front_pages",
-    "apps.mail",
-    "apps.chat",
-    "apps.my_calendar",
-    "apps.kanban",
-    "apps.ecommerce",
-    "apps.academy",
-    "apps.logistics",
-    "apps.invoice",
-    "apps.users",
-    "apps.access",
-    "apps.pages",
-    "apps.authentication",
-    "apps.wizard_examples",
-    "apps.modal_examples",
-    "apps.cards",
-    "apps.ui",
-    "apps.extended_ui",
-    "apps.icons",
-    "apps.forms",
-    "apps.form_layouts",
-    "apps.form_wizard",
-    "apps.form_validation",
-    "apps.tables",
-    "apps.charts",
-    "apps.maps",
-    "apps.transactions",
-    "auth.apps.AuthConfig"
+    "auth.apps.AuthConfig",
+    "django_extensions",
+    "core"
 ]
 
 MIDDLEWARE = [
@@ -173,11 +146,11 @@ LANGUAGES = [
 # ! Make sure you have cleared the browser cache after changing the default language
 LANGUAGE_CODE = "en"
 
-TIME_ZONE = "UTC"
-
 USE_I18N = False
 
 USE_TZ = True
+
+TIME_ZONE = "Asia/Manila"
 
 LOCALE_PATHS = [
     BASE_DIR / "locale",
@@ -219,10 +192,10 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = ""
 EMAIL_HOST_PASSWORD = ""
 
-# Loginyour mail
+# Login your mail
 # ------------------------------------------------------------------------------
-LOGIN_URL = "/login/"
-LOGOUT_REDIRECT_URL = "/login/"
+LOGIN_URL = "/web/"
+LOGOUT_REDIRECT_URL = "/web/"
 
 
 # Session
@@ -242,3 +215,4 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+AUTH_USER_MODEL = "core.User"

@@ -1,11 +1,19 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
-    email = models.EmailField(max_length=100, unique=True)  # Use unique=True for unique email addresses
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile"
+    )
+    email = models.EmailField(max_length=100, unique=True)
     email_token = models.CharField(max_length=100, blank=True, null=True)
     forget_password_token = models.CharField(max_length=100, blank=True, null=True)
     is_verified = models.BooleanField(default=False)
@@ -18,7 +26,6 @@ class Profile(models.Model):
     def create_profile(sender, instance, created, **kwargs):
         if created:
             Profile.objects.create(user=instance, email=instance.email)
-
 
     class Meta:
         verbose_name = "User Profile"

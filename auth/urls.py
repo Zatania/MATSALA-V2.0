@@ -1,13 +1,54 @@
 from django.urls import path
 from django.contrib.auth.views import LogoutView
+from .kiosk.views import KioskView
+from .donate.views import DonateView
+from .donate.coin.views import CoinView
+from .donate.gcash.views import GcashView
+from .assistance.views import AssistanceView
 from .register.views import RegisterView
 from .login.views import LoginView
 from .forgot_password.views import ForgetPasswordView
 from .reset_password.views import ResetPasswordView
 from .verify_email.views import  VerifyEmailTokenView , VerifyEmailView, SendVerificationView
-
+from .web import views
+from .web.views import WebView
+from django.views.generic import RedirectView
 
 urlpatterns = [
+    path(
+        "web/",
+        WebView.as_view(),
+        name="web",
+    ),
+    path(
+        "",
+        RedirectView.as_view(url="/web/", permanent=False)
+    ),
+    path(
+        "kiosk/",
+        KioskView.as_view(),
+        name="kiosk",
+    ),
+    path(
+        "donate/",
+        DonateView.as_view(template_name="auth/donate/donate.html"),
+        name="donate",
+    ),
+    path(
+        "coin/",
+        CoinView.as_view(template_name="auth/donate/coin.html"),
+        name="coin",
+    ),
+    path(
+        "gcash/",
+        GcashView.as_view(template_name="auth/donate/gcash.html"),
+        name="gcash",
+    ),
+    path(
+        "assistance/",
+        AssistanceView.as_view(template_name="auth/assistance/assistance.html"),
+        name="assistance",
+    ),
     path(
         "login/",
         LoginView.as_view(template_name="auth/login.html"),
