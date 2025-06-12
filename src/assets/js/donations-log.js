@@ -86,4 +86,68 @@ $(function () {
     $('div.dataTables_wrapper .dataTables_filter').addClass('mt-0 mt-md-5');
     $('div.dataTables_wrapper div.dataTables_length').addClass('my-5');
   }
+
+  let currentRow, currentDonationId;
+
+  // Approve button
+  $(document).on('click', '.approve-donation', function () {
+    currentRow = $(this).closest('tr');
+    currentDonationId = currentRow.data('donation-id');
+
+    $.ajax({
+      url: `/web/admin/donations/${currentDonationId}/action/`,
+      method: 'POST',
+      data: { action: 'approve' },
+      success() {
+        Swal.fire('Approved', 'Donation confirmed.', 'success');
+      },
+      error(xhr) {
+        const msg = xhr.responseJSON?.error || 'Error approving';
+        Swal.fire('Error', msg, 'error');
+      }
+    });
+  });
+
+  // Reject button: show modal
+  $(document).on('click', '.reject-donation', function () {
+    currentRow = $(this).closest('tr');
+    currentDonationId = currentRow.data('donation-id');
+    $('#donationRejectReason').val('');
+    $('#donationRejectError').hide();
+    $('#donationRejectConfirm').prop('disabled', true);
+    new bootstrap.Modal($('#rejectDonationModal')).show();
+  });
+
+  // Enable Confirm when non-empty
+  $('#donationRejectReason').on('input', function () {
+    $('#donationRejectConfirm').prop('disabled', !this.value.trim());
+  });
+
+  // Handle Reject confirm
+  $('#donationRejectConfirm').on('click', function () {
+    const reason = $('#donationRejectReason').val().trim();
+    if (!reason) {
+      $('#donationRejectError').text('Reason required.').show();
+      return;
+    }
+    $.ajax({
+      url: `/web/admin/donations/${currentDonationId}/action/`,
+      method: 'POST',
+      data: { action: 'reject', reason: reason },
+      success() {
+        $('#rejectDonationModal').modal('hide');
+        // update status cell with rejection note
+        currentRow
+          .find('td')
+          .eq(4)
+          .html('Rejected<br><small class="text-muted">Reason: ' + reason + '</small>');
+        currentRow.find('td').eq(5).html('<span class="badge bg-label-secondary">No Actions</span>');
+        Swal.fire('Rejected', 'Donation has been rejected.', 'success');
+      },
+      error(xhr) {
+        const msg = xhr.responseJSON?.error || 'Error rejecting';
+        $('#donationRejectError').text(msg).show();
+      }
+    });
+  });
 });

@@ -16,7 +16,7 @@ $(function () {
   const dt = $('.datatables-claims').DataTable({
     autoWidth: false,
     scrollX: true,
-    order: [[3, 'desc']], // Order by date, newest first
+    order: [[5, 'desc']], // Order by date, newest first
     dom:
       '<"row"' +
       '<"col-md-2"<l>>' +
@@ -75,7 +75,7 @@ $(function () {
       }
     ],
     responsive: true,
-    columnDefs: [{ targets: 4, orderable: false, searchable: false }]
+    columnDefs: [{ targets: 5, orderable: false, searchable: false }]
   });
 
   // -- CSRF helper --
@@ -113,7 +113,7 @@ $(function () {
     $.ajax({
       url: `/web/admin/claims/${currentClaimId}/action/`,
       method: 'POST',
-      data: { action: 'approve', reference_number: ref },
+      data: { action: 'approve', gcash_payout_id: ref },
       success() {
         $('#approveModal').modal('hide');
         // update row
@@ -122,9 +122,9 @@ $(function () {
         Swal.fire('Approved', 'Claim has been approved.', 'success');
       },
       error(xhr) {
-        $('#approveError')
-          .text(xhr.responseText || 'Error approving')
-          .show();
+        let msg =
+          xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.statusText || 'Error approving';
+        $('#approveError').text(msg).show();
       }
     });
   });
@@ -163,9 +163,9 @@ $(function () {
         Swal.fire('Rejected', 'Claim has been rejected.', 'success');
       },
       error(xhr) {
-        $('#rejectError')
-          .text(xhr.responseText || 'Error rejecting')
-          .show();
+        let msg =
+          xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.statusText || 'Error rejecting';
+        $('#rejectError').text(msg).show();
       }
     });
   });

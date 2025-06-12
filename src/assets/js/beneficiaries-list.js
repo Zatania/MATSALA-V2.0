@@ -26,7 +26,7 @@ $(function () {
     dt = dt_beneficiary_table.DataTable({
       autoWidth: false,
       scrollX: true,
-      order: [[1, 'asc']], // sort by First Name
+      order: [[2, 'asc']], // sort by First Name
       dom:
         '<"row"' +
         '<"col-md-2"<l>>' +
@@ -264,6 +264,7 @@ $(function () {
       url: `/web/admin/beneficiaries/${beneficiaryId}/update/`,
       method: 'GET',
       success: function (data) {
+        $('#editIDNumber').val(data.idnumber);
         $('#editFirstName').val(data.first_name);
         $('#editLastName').val(data.last_name);
         $('#editEmail').val(data.email);

@@ -31,6 +31,7 @@ class User(AbstractUser):
 
     # Specific fields for Donor and Beneficiary:
     phone = models.CharField(max_length=20, blank=True, null=True)
+    idnumber = models.CharField(max_length=20, blank=True, null=True)
     current_balance = models.DecimalField(
         max_digits=12,
         decimal_places=2,
@@ -152,6 +153,29 @@ class Donation(models.Model):
         who = self.user.username if self.user else "Guest"
         return f"{who} donated ₱{self.amount} via {self.method} at {self.created_at}"
 
+class SystemBalance(models.Model):
+  """
+  Singleton model to track total available funds in the system.
+  Should only have one row (id=1).
+  """
+  total_balance = models.DecimalField(
+    max_digits=12,
+    decimal_places=2,
+    default=0.00,
+    validators=[MinValueValidator(0)],
+  )
+
+  total_disbursed  = models.DecimalField(
+    max_digits=12,
+    decimal_places=2,
+    default=0.00,
+    validators=[MinValueValidator(0)],
+    help_text="Cumulative sum of all claim payouts.",
+  )
+
+  def __str__(self):
+    return (f"Remaining: ₱{self.total_balance}  "
+            f"Disbursed: ₱{self.total_disbursed}")
 
 # -----------------------------------------------------------------------------
 # 5. CLAIMS (beneficiary assistance requests)
