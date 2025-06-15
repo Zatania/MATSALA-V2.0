@@ -7,11 +7,11 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from .models import (
-    UserPhoto,
-    CoinBoxStatus,
-    Donation,
-    Claim,
-    AuditLog,
+  UserPhoto,
+  CoinBoxStatus,
+  Donation,
+  Claim,
+  AuditLog, SystemBalance,
 )
 
 User = get_user_model()
@@ -55,6 +55,7 @@ def create_donor(
 
 
 def create_beneficiary(
+    idnumber: str,
     username: str,
     password: str,
     email: str,
@@ -68,6 +69,7 @@ def create_beneficiary(
     """
     with transaction.atomic():
         user = User.objects.create_user(
+            idnumber=idnumber,
             username=username,
             password=password,
             email=email,
@@ -212,16 +214,31 @@ def update_donation_status(
     if admin.role != "admin":
         raise ValueError("User is not an admin.")
 
+    if donation.status == "confirmed":
+      raise ValueError("Donation is already confirmed.")
+
     donation.status = new_status
     donation.save()
 
+    if new_status == "confirmed":
+      system_balance, _ = SystemBalance.objects.get_or_create(id=1)
+      system_balance.total_balance += donation.amount
+      system_balance.save()
+    if donation.amount == donation.coin_count:
+      coin_box, _ = CoinBoxStatus.objects.get_or_create(id=1)
+      coin_box.current_count = max(
+        coin_box.current_count - donation.coin_count,
+        0
+      )
+      coin_box.save()
+
     action = "donation_confirmed" if new_status == "confirmed" else "donation_rejected"
     AuditLog.objects.create(
-        admin_user=admin,
-        action=action,
-        target_model="Donation",
-        target_id=donation.id,
-        notes=notes,
+      admin_user=admin,
+      action=action,
+      target_model="Donation",
+      target_id=donation.id,
+      notes=notes,
     )
     return donation
 
@@ -260,6 +277,12 @@ def list_all_donations(method: str = None, status: str = None):
     return qs.order_by("-created_at")
 
 
+def get_system_balance() -> SystemBalance:
+  return SystemBalance.objects.get_or_create(id=1)[0]
+
+def get_system_disbursed() -> SystemBalance:
+  return SystemBalance.objects.get_or_create(id=1)[0].total_disbursed
+
 # -----------------------------------------------------------------------------
 # 3. CLAIM‐RELATED CRUD
 # -----------------------------------------------------------------------------
@@ -293,23 +316,32 @@ def update_claim_status(
     reason: str = "",
     gcash_payout_id: str = None,
 ) -> Claim:
-    """
-    Update a Claim's status to 'approved', 'rejected', or 'paid'. Must be called by an admin.
-    Logs an AuditLog entry.
-    """
     claim = get_claim_by_id(claim_id)
     admin = get_user_by_id(admin_user_id)
     if admin.role != "admin":
         raise ValueError("User is not an admin.")
 
+    if new_status == "approved":
+        system_balance, _ = SystemBalance.objects.get_or_create(id=1)
+        if claim.requested_amount > system_balance.total_balance:
+            raise ValueError("Insufficient system balance for payout.")
+
+        system_balance.total_balance -= claim.requested_amount
+        system_balance.total_disbursed += claim.requested_amount
+        system_balance.save()
+
+        # Update beneficiary balance
+        beneficiary = claim.user
+        beneficiary.current_balance += claim.requested_amount
+        beneficiary.save()
+
+        if gcash_payout_id:
+            claim.gcash_payout_id = gcash_payout_id
+
     claim.status = new_status
     claim.admin_processed_by = admin
     claim.admin_decision_reason = reason or ""
     claim.processed_at = timezone.now()
-
-    if new_status == "paid" and gcash_payout_id:
-        claim.gcash_payout_id = gcash_payout_id
-
     claim.save()
 
     action_map = {

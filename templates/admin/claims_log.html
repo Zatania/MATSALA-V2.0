@@ -33,8 +33,10 @@
       <table class="datatables-claims table w-100">
         <thead class="table-light">
           <tr class="text-nowrap">
+            <th>ID Number</th>
             <th>Claimant</th>
             <th>Requested Amount</th>
+            <th>Phone Number</th>
             <th>Status</th>
             <th>Submitted</th>
             <th>Actions</th>
@@ -43,10 +45,21 @@
         <tbody>
           {% for claim in claims %}
           <tr data-claim-id="{{ claim.id }}">
+            <td>{{ claim.user.idnumber }}</td>
             <td>{{ claim.user.first_name }} {{ claim.user.last_name }}</td>
             <td>₱ {{ claim.requested_amount }}</td>
-            <td>{{ claim.status|title }}</td>
-            <td>{{ claim.created_at|date:"F j, Y g:i A" }}</td>
+            <td>{{ claim.user.phone }}</td>
+            <td class="claim-status-cell">
+              {{ claim.status|title }}
+              {% if claim.status == 'approved' and claim.gcash_payout_id %}
+                <br><small class="text-muted">Ref: {{ claim.gcash_payout_id }}</small>
+              {% elif claim.status == 'rejected' and claim.admin_decision_reason %}
+                <br><small class="text-muted">Reason: {{ claim.admin_decision_reason }}</small>
+              {% endif %}
+            </td>
+            <td data-order="{{ claim.created_at|date:'Y-m-d H:i:s' }}">
+              {{ claim.created_at|date:"F j, Y g:i A" }}
+            </td>
             <td>
               {% if claim.status == 'pending' %}
               <div class="btn-group" role="group">

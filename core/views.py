@@ -22,22 +22,22 @@ from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 
 from .crud import (
-    create_donor,
-    create_coin_donation,
-    create_gcash_donation,
-    verify_donation_facial,
-    create_beneficiary,
-    create_claim,
-    update_claim_status,
-    update_donation_status,
-    get_coin_box_status,
-    reset_coin_box,
-    list_all_donations,
-    list_all_claims,
-    list_all_donors,
-    list_all_beneficiaries,
-    list_all_admins,
-    list_audit_logs,
+  create_donor,
+  create_coin_donation,
+  create_gcash_donation,
+  verify_donation_facial,
+  create_beneficiary,
+  create_claim,
+  update_claim_status,
+  update_donation_status,
+  get_coin_box_status,
+  reset_coin_box,
+  list_all_donations,
+  list_all_claims,
+  list_all_donors,
+  list_all_beneficiaries,
+  list_all_admins,
+  list_audit_logs, get_system_balance, get_system_disbursed,
 )
 from .models import Donation, Claim, User
 
@@ -481,6 +481,7 @@ class BeneficiaryWebRegisterView(View):
 
     def post(self, request):
         data = request.POST
+        idnumber = data.get("idnumber", "").strip()
         username = data.get("username")
         password = data.get("password")
         confirm_pw = data.get("confirm_password")
@@ -495,6 +496,7 @@ class BeneficiaryWebRegisterView(View):
             return redirect(reverse("web_beneficiary_register"))
 
         beneficiary = create_beneficiary(
+            idnumber=idnumber,
             username=username,
             password=password,
             email=email,
@@ -706,126 +708,140 @@ def admin_logout(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-  # midnight today in local time
-  now = timezone.localtime(timezone.now())
-  start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-  start_of_tomorrow = start_of_today + datetime.timedelta(days=1)
+    # midnight today in local time
+    now = timezone.localtime(timezone.now())
+    start_of_today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_tomorrow = start_of_today + datetime.timedelta(days=1)
 
-  week_start = start_of_today - datetime.timedelta(days=7)
-  month_start = start_of_today.replace(day=1)
+    week_start = start_of_today - datetime.timedelta(days=7)
+    month_start = start_of_today.replace(day=1)
 
-  period_defs = [
-    # explicit datetime ranges instead of __date
-    (
-      "today",
-      "Today",
-      Q(created_at__gte=start_of_today, created_at__lt=start_of_tomorrow),
-    ),
-    (
-      "week",
-      "Last 7 Days",
-      Q(created_at__gte=week_start, created_at__lt=start_of_tomorrow),
-    ),
-    (
-      "month",
-      "This Month",
-      Q(created_at__gte=month_start, created_at__lt=start_of_tomorrow),
-    ),
-  ]
-  period_stats = []
-  for key, label, filt in period_defs:
-    qs = Donation.objects.filter(filt)
-    period_stats.append({
-      "key": key,
-      "label": label,
-      "count": qs.count(),
-      "amount": qs.aggregate(total=Sum("amount"))["total"] or 0,
+    period_defs = [
+        # explicit datetime ranges instead of __date
+        (
+            "today",
+            "Today",
+            Q(created_at__gte=start_of_today, created_at__lt=start_of_tomorrow),
+        ),
+        (
+            "week",
+            "Last 7 Days",
+            Q(created_at__gte=week_start, created_at__lt=start_of_tomorrow),
+        ),
+        (
+            "month",
+            "This Month",
+            Q(created_at__gte=month_start, created_at__lt=start_of_tomorrow),
+        ),
+    ]
+    period_stats = []
+    for key, label, filt in period_defs:
+        base_qs = Donation.objects.filter(filt)
+        total_amount = base_qs.aggregate(total=Sum("amount"))["total"] or 0
+        total_count = base_qs.count()
+        pending_count = base_qs.filter(status="pending").count()
+        confirmed_count = base_qs.filter(status="confirmed").count()
+
+        period_stats.append({
+            "key": key,
+            "label": label,
+            "count": total_count,
+            "amount": total_amount,
+            "pending_count": pending_count,
+            "confirmed_count": confirmed_count,
+        })
+
+    # ─── 2) Donation stats by method ───
+    method_defs = [
+        ("coin", "Coin", "bi-coin"),
+        ("gcash", "GCash", "bi-phone"),
+    ]
+    method_stats = []
+    for key, label, icon in method_defs:
+        qs = Donation.objects.filter(method=key)
+        method_stats.append({
+            "key": key,
+            "label": label,
+            "icon": icon,
+            "count": qs.count(),
+            "amount": qs.aggregate(total=Sum("amount"))["total"] or 0,
+        })
+
+    # ─── 3) Pending claims ───
+    pending_qs = Claim.objects.filter(status="pending")
+    pending_claims = {
+        "count": pending_qs.count(),
+        "amount": pending_qs.aggregate(total=Sum("requested_amount"))["total"] or 0,
+    }
+
+    # ─── 4) Needs breakdown (unchanged) ───
+    needs_qs = Claim.objects.values("need_type").annotate(
+        total_count=Count("id"),
+        total_amount=Sum("requested_amount"),
+        approved_count=Count("id", filter=Q(status="approved")),
+        approved_amount=Sum("requested_amount", filter=Q(status="approved")),
+        rejected_count=Count("id", filter=Q(status="rejected")),
+        rejected_amount=Sum("requested_amount", filter=Q(status="rejected")),
+        pending_count=Count("id", filter=Q(status="pending")),
+        pending_amount=Sum("requested_amount", filter=Q(status="pending")),
+    )
+    LABELS = dict(Claim.NEED_CHOICES)
+    status_defs = [
+        ("total", "Total", "muted"),
+        ("approved", "Approved", "success"),
+        ("rejected", "Rejected", "danger"),
+        ("pending", "Pending", "warning"),
+    ]
+
+    need_stats = []
+    for n in needs_qs:
+        nt = n["need_type"]
+        breakdown = []
+        for key, label, color in status_defs:
+            breakdown.append({
+                "status": label,
+                "count": n[f"{key}_count"],
+                "amount": n[f"{key}_amount"] or 0,
+                "color": color,
+            })
+        need_stats.append({
+            "label": LABELS[nt],
+            "breakdown": breakdown,
+        })
+
+    # ─── 5) Coin box ───
+    coin_box = get_coin_box_status()
+    fill_pct = (coin_box.current_count / coin_box.capacity) * 100
+    fill_color = "danger" if fill_pct >= 90 else "warning" if fill_pct >= 70 else "success"
+
+    menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
+
+    system_balance = get_system_balance()
+    total_disbursed = get_system_disbursed()
+
+    return render(request, "admin/dashboard.html", {
+        "period_stats": period_stats,
+        "method_stats": method_stats,
+        "pending_claims": pending_claims,
+        "need_stats": need_stats,
+        "coin_box": coin_box,
+        "fill_percent": round(fill_pct),
+        "fill_color": fill_color,
+
+        # system balance
+        "system_balance": system_balance,
+        "total_disbursed": total_disbursed,
+
+        # layout flags
+        "is_flex": True,
+        "content_navbar": True,
+        "is_navbar": True,
+        "is_menu": True,
+        "is_footer": True,
+        "navbar_detached": True,
+        "menu_data": menu_data,
+        "layout_path": "layout/layout_vertical.html",
     })
-
-  # ─── 2) Donation stats by method ───
-  method_defs = [
-    ("coin", "Coin", "bi-coin"),
-    ("gcash", "GCash", "bi-phone"),
-  ]
-  method_stats = []
-  for key, label, icon in method_defs:
-    qs = Donation.objects.filter(method=key)
-    method_stats.append({
-      "key": key,
-      "label": label,
-      "icon": icon,
-      "count": qs.count(),
-      "amount": qs.aggregate(total=Sum("amount"))["total"] or 0,
-    })
-
-  # ─── 3) Pending claims ───
-  pending_qs = Claim.objects.filter(status="pending")
-  pending_claims = {
-    "count": pending_qs.count(),
-    "amount": pending_qs.aggregate(total=Sum("requested_amount"))["total"] or 0,
-  }
-
-  # ─── 4) Needs breakdown (unchanged) ───
-  needs_qs = Claim.objects.values("need_type").annotate(
-    total_count=Count("id"),
-    total_amount=Sum("requested_amount"),
-    approved_count=Count("id", filter=Q(status="approved")),
-    approved_amount=Sum("requested_amount", filter=Q(status="approved")),
-    rejected_count=Count("id", filter=Q(status="rejected")),
-    rejected_amount=Sum("requested_amount", filter=Q(status="rejected")),
-    pending_count=Count("id", filter=Q(status="pending")),
-    pending_amount=Sum("requested_amount", filter=Q(status="pending")),
-  )
-  LABELS = dict(Claim.NEED_CHOICES)
-  status_defs = [
-    ("total", "Total", "muted"),
-    ("approved", "Approved", "success"),
-    ("rejected", "Rejected", "danger"),
-    ("pending", "Pending", "warning"),
-  ]
-
-  need_stats = []
-  for n in needs_qs:
-    nt = n["need_type"]
-    breakdown = []
-    for key, label, color in status_defs:
-      breakdown.append({
-        "status": label,
-        "count": n[f"{key}_count"],
-        "amount": n[f"{key}_amount"] or 0,
-        "color": color,
-      })
-    need_stats.append({
-      "label": LABELS[nt],
-      "breakdown": breakdown,
-    })
-
-  # ─── 5) Coin box ───
-  coin_box = get_coin_box_status()
-  fill_pct = (coin_box.current_count / coin_box.capacity) * 100
-  fill_color = "danger" if fill_pct >= 90 else "warning" if fill_pct >= 70 else "success"
-
-  menu_data = json.load(menu_file_path.open()) if menu_file_path.exists() else []
-
-  return render(request, "admin/dashboard.html", {
-    "period_stats": period_stats,
-    "method_stats": method_stats,
-    "pending_claims": pending_claims,
-    "need_stats": need_stats,
-    "coin_box": coin_box,
-    "fill_percent": round(fill_pct),
-    "fill_color": fill_color,
-
-    # layout flags
-    "is_flex": True,
-    "content_navbar": True,
-    "is_navbar": True,
-    "is_menu": True,
-    "is_footer": True,
-    "navbar_detached": True,
-    "menu_data": menu_data,
-    "layout_path": "layout/layout_vertical.html",
-  })
 
 
 @login_required
@@ -945,6 +961,7 @@ def admin_beneficiaries_update(request, beneficiaryId):
 
     if request.method == "GET":
         data = {
+            "idnumber": beneficiary.idnumber,
             "first_name": beneficiary.first_name,
             "last_name": beneficiary.last_name,
             "email": beneficiary.email,
@@ -953,6 +970,7 @@ def admin_beneficiaries_update(request, beneficiaryId):
         return JsonResponse(data)
 
     elif request.method == "POST":
+        idnumber = request.POST.get("idnumber", "").strip()
         first_name = request.POST.get("first_name", "").strip()
         last_name = request.POST.get("last_name", "").strip()
         email = request.POST.get("email", "").strip()
@@ -968,6 +986,7 @@ def admin_beneficiaries_update(request, beneficiaryId):
         if not last_name:
             return JsonResponse({"error": "Last name is required."}, status=400)
 
+        beneficiary.idnumber = idnumber
         beneficiary.first_name = first_name
         beneficiary.last_name = last_name
         beneficiary.email = email
@@ -1020,28 +1039,49 @@ def admin_donations_log(request):
     })
 
 
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
-@method_decorator(csrf_exempt, name="dispatch")
 def admin_donation_action(request, donation_id):
   if request.method != "POST":
     return HttpResponseBadRequest("Invalid request method.")
 
   donation = get_object_or_404(Donation, id=donation_id)
   if donation.status != "pending":
-    return HttpResponseBadRequest("Donation not pending.")
+    return JsonResponse({"error": "Donation is not pending."}, status=400)
 
   action = request.POST.get("action")
   reason = request.POST.get("reason", "").strip()
 
   if action == "approve":
-    update_donation_status(donation_id=donation_id, new_status="confirmed", admin_user_id=request.user.id)
-  elif action == "reject":
-    update_donation_status(donation_id=donation_id, new_status="rejected", admin_user_id=request.user.id, notes=reason)
-  else:
-    return HttpResponseBadRequest("Invalid action.")
+    try:
+      update_donation_status(
+        donation_id=donation.id,
+        new_status="confirmed",
+        admin_user_id=request.user.id,
+      )
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=400)
 
-  return JsonResponse({"success": True})
+  elif action == "reject":
+    if not reason:
+      return JsonResponse({"error": "Rejection reason required."}, status=400)
+    try:
+      update_donation_status(
+        donation_id=donation.id,
+        new_status="rejected",
+        admin_user_id=request.user.id,
+        notes=reason,
+      )
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=400)
+
+  else:
+    return JsonResponse({"error": "Invalid action."}, status=400)
+
+  return JsonResponse({
+    "success": True
+  })
 
 @csrf_exempt
 @login_required
@@ -1083,27 +1123,33 @@ def admin_claim_action(request, claim_id):
   action = request.POST.get("action")
 
   if action == "approve":
-    ref = request.POST.get("reference_number", "").strip()
+    ref = request.POST.get("gcash_payout_id", "").strip()
     if not ref:
-      return HttpResponseBadRequest("Reference number required.")
+      return JsonResponse({"error": "Reference number required."}, status=400)
     # Pass the reference number into your service
-    update_claim_status(
-      claim_id=claim_id,
-      new_status="approved",
-      admin_user_id=request.user.id,
-      gcash_payout_id=ref
-    )
+    try:
+      update_claim_status(
+        claim_id=claim_id,
+        new_status="approved",
+        admin_user_id=request.user.id,
+        gcash_payout_id=ref
+      )
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=400)
 
   elif action == "reject":
     reason = request.POST.get("reason", "").strip()
     if not reason:
-      return HttpResponseBadRequest("Rejection reason required.")
-    update_claim_status(
-      claim_id=claim_id,
-      new_status="rejected",
-      admin_user_id=request.user.id,
-      reason=reason
-    )
+      return JsonResponse({"error": "Rejection reason required."}, status=400)
+    try:
+      update_claim_status(
+        claim_id=claim_id,
+        new_status="rejected",
+        admin_user_id=request.user.id,
+        reason=reason
+      )
+    except Exception as e:
+      return JsonResponse({"error": str(e)}, status=400)
 
   else:
     return HttpResponseBadRequest("Invalid action.")

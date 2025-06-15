@@ -39,6 +39,7 @@
             <th>Amount</th>
             <th>Method</th>
             <th>Date</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -53,11 +54,46 @@
             </td>
             <td>{{ donation.amount }}</td>
             <td>{{ donation.method }}</td>
-            <td>{{ donation.created_at|date:"F j, Y g:i A" }}</td>
+            <td data-order="{{ donation.created_at|date:'Y-m-d H:i:s' }}">
+              {{ donation.created_at|date:"F j, Y g:i A" }}
+            </td>
+            <td class="donation-actions-cell">
+              {% if donation.status == 'pending' %}
+                <div class="btn-group" role="group">
+                  <button class="btn btn-sm btn-success approve-donation">Approve</button>
+                  <button class="btn btn-sm btn-danger reject-donation">Reject</button>
+                </div>
+              {% else %}
+                <span class="badge bg-label-secondary">No Actions</span>
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Donation Modal -->
+<div class="modal fade" id="rejectDonationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reject Donation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-floating mb-3">
+          <textarea id="donationRejectReason" class="form-control"
+                    placeholder="Reason for rejection" rows="3"></textarea>
+          <label for="donationRejectReason">Reason</label>
+        </div>
+        <div id="donationRejectError" class="text-danger small" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="donationRejectConfirm" class="btn btn-danger" disabled>Confirm Reject</button>
+      </div>
     </div>
   </div>
 </div>

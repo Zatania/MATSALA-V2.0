@@ -40,10 +40,30 @@
             <h6 class="text-uppercase text-secondary">Donations {{ stat.label }}</h6>
             <p class="h4 fw-bold">₱{{ stat.amount }}</p>
             <small>{{ stat.count }} transactions</small>
+            <small class="d-block text-danger">Pending: {{ stat.pending_count }}</small>
+            <small class="d-block text-success">Confirmed: {{ stat.confirmed_count }}</small>
           </div>
         </div>
       </div>
     {% endfor %}
+  </div>
+  <div class="row g-4 mb-5">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-secondary">System Balance</h6>
+          <p class="h4 fw-bold">₱{{ system_balance.total_balance }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-uppercase text-secondary">Disbursed Amount</h6>
+          <p class="h4 fw-bold">₱{{ system_balance.total_disbursed }}</p>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="row g-4 mb-5">

@@ -38,6 +38,7 @@
         <thead class="table-light">
           <tr class="text-nowrap">
             <th></th>
+            <th>ID Number</th>
             <th>First Name</th>
             <th>Last Name</th>
             <th>Email</th>
@@ -49,6 +50,7 @@
           {% for beneficiary in beneficiaries %}
           <tr data-beneficiary-id="{{ beneficiary.id }}">
             <td></td>
+            <td>{{ beneficiary.idnumber }}</td>
             <td>{{ beneficiary.first_name }}</td>
             <td>{{ beneficiary.last_name }}</td>
             <td>{{ beneficiary.email }}</td>
@@ -106,6 +108,10 @@
           <input type="hidden" id="editBeneficiaryId" name="beneficiary_id" />
 
           <div class="row g-3">
+            <div class="col-md-6 form-floating form-floating-outline mb-3">
+              <input type="text" class="form-control" id="editIDNumber" name="idnumber" placeholder="Enter your ID Number" required>
+              <label for="editIDNumber">ID Number</label>
+            </div>
             <div class="col-md-6 form-floating form-floating-outline mb-3">
               <input type="text" class="form-control" id="editFirstName" name="first_name" placeholder="Enter your last name" required>
               <label for="editFirstName">First Name</label>
