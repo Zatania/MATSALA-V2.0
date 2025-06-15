@@ -20,8 +20,8 @@ function initCoinSocket() {
 }
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
-  // initialize coin socket
-  initCoinSocket();
+  /* // initialize coin socket
+  initCoinSocket(); */
   // Utility to handle donation-type view logic (show/hide name fields, toggle "Done")
   function setupDonationModal(modalId, pickerId, namedFieldsId, doneBtnId, tallyId = null, inputSelectors = {}) {
     const modal = document.getElementById(modalId);
@@ -234,6 +234,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // ––––––––––– Coin‐Slot “Done” logic (no Reference Number) –––––––––––
   const coinDoneBtn = document.getElementById('coinDoneBtn');
+
+  // Get a handle to the coin‐modal element
+  const coinModalEl = document.getElementById('coinModal');
+
+  // When the coin modal opens:
+  coinModalEl.addEventListener('shown.bs.modal', () => {
+    // reset tally & disable Done
+    document.getElementById('coinTally').textContent = '0.00';
+    document.getElementById('coinDoneBtn').disabled = true;
+
+    // open WebSocket
+    initCoinSocket();
+  });
+
+  // When the coin modal closes:
+  coinModalEl.addEventListener('hidden.bs.modal', () => {
+    // close WS if open
+    if (coinSocket) {
+      coinSocket.close();
+      coinSocket = null;
+    }
+    // reset tally again (in case user re‑opens later)
+    document.getElementById('coinTally').textContent = '0.00';
+  });
 
   coinDoneBtn.addEventListener('click', function () {
     const donationType = document.getElementById('coinslotpickerDonationType').value;
