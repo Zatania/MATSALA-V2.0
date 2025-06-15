@@ -104,14 +104,10 @@ TEMPLATES = [
 # Tell Django you have an ASGI app
 ASGI_APPLICATION = "config.asgi.application"
 
-# Use Redis as the channel layer
+
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            # adjust host/port if your Redis is elsewhere
-            "hosts": [("127.0.0.1", 6379)],
-        },
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 
