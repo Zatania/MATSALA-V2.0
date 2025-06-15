@@ -25,6 +25,90 @@
 {% block page_js %}
 {{ block.super }}
 <script src="{% static 'js/pages-auth.js' %}"></script>
+ <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btnOpen      = document.getElementById('btnOpenCamera');
+      const btnChoose    = document.getElementById('btnChooseFile');
+      const fileInput    = document.getElementById('face_photo');
+      const previewImg   = document.getElementById('photoPreview');
+      const modalEl      = new bootstrap.Modal(document.getElementById('cameraModal'));
+      const video        = document.getElementById('cameraStream');
+      const canvas       = document.getElementById('cameraCanvas');
+      const btnSnap      = document.getElementById('btnTakePhoto');
+      let stream;
+
+      // open file picker fallback
+      btnChoose.addEventListener('click', () => fileInput.click());
+
+      // when user chooses file, show preview
+      fileInput.addEventListener('change', () => {
+        if (!fileInput.files?.length) return;
+        const url = URL.createObjectURL(fileInput.files[0]);
+        previewImg.src = url;
+        previewImg.classList.remove('d-none');
+      });
+
+      // open camera modal
+      btnOpen.addEventListener('click', () => {
+        // (re-)clear any previous error
+        const errEl = document.querySelector('#cameraModal .camera-error');
+        if (errEl) errEl.remove();
+
+        modalEl.show();
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(s => {
+            stream = s;
+            video.srcObject = s;
+            btnSnap.disabled = false;           // enable snapshot
+          })
+          .catch(err => {
+            btnSnap.disabled = true;            // prevent snapshot
+            const body = document.querySelector('#cameraModal .modal-body');
+            const html = `
+              <p class="camera-error text-danger mt-2">
+                Cannot access camera: ${err.name}
+              </p>`;
+            body.insertAdjacentHTML('beforeend', html);
+          });
+      });
+
+      // take snapshot
+      btnSnap.addEventListener('click', () => {
+        // set canvas size to video size
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+
+        // stop the camera
+        stream.getTracks().forEach((t) => t.stop());
+
+        // extract blob from canvas
+        canvas.toBlob((blob) => {
+          // create a File out of the blob
+          const photoFile = new File([blob], 'capture.png', { type: 'image/png' });
+          // put it into DataTransfer for the file input
+          const dt = new DataTransfer();
+          dt.items.add(photoFile);
+          fileInput.files = dt.files;
+
+          // show preview
+          previewImg.src = URL.createObjectURL(blob);
+          previewImg.classList.remove('d-none');
+        }, 'image/png');
+
+        modalEl.hide();
+      });
+
+      // cleanup stream if modal closed without snapping
+      document.getElementById('cameraModal')
+        .addEventListener('hidden.bs.modal', () => {
+          if (stream) {
+            stream.getTracks().forEach((t) => t.stop());
+          }
+        });
+    });
+  </script>
 {% endblock page_js %}
 
 {% block content %}
@@ -103,9 +187,25 @@
             </div>
           </div>
           <div class="mb-5">
-            <label for="face_photo" class="form-label">Face Photo</label>
-            <input type="file" class="form-control" id="face_photo" name="face_photo" accept="image/*" capture="user">
+            <label class="form-label">Face Photo</label>
+            <div class="d-flex gap-2">
+              <!-- hidden file input we’ll populate from JS -->
+              <input type="file" id="face_photo" name="face_photo" accept="image/*" class="d-none">
+              <!-- button to open camera modal -->
+              <button type="button" class="btn btn-outline-primary" id="btnOpenCamera">
+                <i class="ri-camera-line"></i> Capture from Camera
+              </button>
+              <!-- fallback: let user pick if camera isn’t available -->
+              <button type="button" class="btn btn-outline-secondary" id="btnChooseFile">
+                <i class="ri-upload-line"></i> Choose File
+              </button>
+            </div>
+            <!-- thumbnail preview -->
+            <div class="mt-3">
+              <img id="photoPreview" src="#" alt="Preview" class="img-fluid rounded d-none" style="max-height: 200px;">
+            </div>
           </div>
+
 {#          <div class="mb-5">#}
 {#            <div class="form-check mt-2">#}
 {#              <input class="form-check-input" type="checkbox" id="terms-conditions" name="terms">#}
@@ -133,4 +233,24 @@
     <!-- /Register -->
   </div>
 </div>
+<!-- Camera Modal -->
+  <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Capture Photo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <video id="cameraStream" autoplay playsinline class="w-100 rounded"
+                style="width:100%; max-width:400px; transform: scaleX(-1);"></video>
+          <canvas id="cameraCanvas" class="d-none"></canvas>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btnTakePhoto">Take Photo</button>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
