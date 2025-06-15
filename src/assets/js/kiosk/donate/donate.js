@@ -1,5 +1,27 @@
+let coinSocket = null;
+function initCoinSocket() {
+  const loc = window.location;
+  const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
+  const socketUrl = `${wsProtocol}://${loc.host}/ws/coins/`;
+  coinSocket = new WebSocket(socketUrl);
+
+  coinSocket.onopen = () => console.log('Coin WS open');
+  coinSocket.onclose = () => {
+    console.log('Coin WS closed, retrying in 5s');
+    setTimeout(initCoinSocket, 5000);
+  };
+  coinSocket.onmessage = evt => {
+    const data = JSON.parse(evt.data);
+    if (data.event === 'coin_inserted') {
+      document.getElementById('coinTally').textContent = parseFloat(data.coin_count).toFixed(2);
+      document.getElementById('coinDoneBtn').disabled = false;
+    }
+  };
+}
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
+  // initialize coin socket
+  initCoinSocket();
   // Utility to handle donation-type view logic (show/hide name fields, toggle "Done")
   function setupDonationModal(modalId, pickerId, namedFieldsId, doneBtnId, tallyId = null, inputSelectors = {}) {
     const modal = document.getElementById(modalId);
@@ -215,8 +237,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   coinDoneBtn.addEventListener('click', function () {
     const donationType = document.getElementById('coinslotpickerDonationType').value;
+
+    // read the tally exactly as displayed (e.g. "3.00") and turn it into a number
     const rawTally = document.getElementById('coinTally').textContent || '0';
-    const coinCount = parseInt(rawTally, 10);
+    const coinCount = parseFloat(rawTally);
 
     let payload = {
       donation_type: donationType,
