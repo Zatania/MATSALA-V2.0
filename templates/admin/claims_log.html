@@ -35,20 +35,38 @@
           <tr class="text-nowrap">
             <th>ID Number</th>
             <th>Claimant</th>
+            <th>Need Type</th>
+            <th>Priority</th>
             <th>Requested Amount</th>
-            <th>Phone Number</th>
+            <th>GCash Number</th>
+            <th>LandLord GCash Number</th>
             <th>Status</th>
+            <th>Partial?</th>
+            <th>Proof</th>
             <th>Submitted</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for claim in claims %}
-          <tr data-claim-id="{{ claim.id }}">
+          <tr>
             <td>{{ claim.user.idnumber }}</td>
             <td>{{ claim.user.first_name }} {{ claim.user.last_name }}</td>
+            <td>
+              {% if claim.need_type == 'rent' %}
+                Rent
+              {% elif claim.need_type == 'school_supplies' %}
+                School Supplies
+              {% elif claim.need_type == 'food' %}
+                Food
+              {% elif claim.need_type == 'transport' %}
+                Transport
+              {% endif %}
+            </td>
+            <td data-order="{{ claim.priority }}">{{ claim.priority }}</td>
             <td>₱ {{ claim.requested_amount }}</td>
             <td>{{ claim.user.phone }}</td>
+            <td>{{ claim.user.landlord_gcash_number }}</td>
             <td class="claim-status-cell">
               {{ claim.status|title }}
               {% if claim.status == 'approved' and claim.gcash_payout_id %}
@@ -57,14 +75,41 @@
                 <br><small class="text-muted">Reason: {{ claim.admin_decision_reason }}</small>
               {% endif %}
             </td>
+            <td data-order="{{ claim.willing_partial|yesno:'1,0' }}">
+              {% if claim.willing_partial %}
+                <span class="badge bg-success">Yes</span>
+              {% else %}
+                <span class="badge bg-secondary">No</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if claim.proof_of_need %}
+                <button
+                  type="button"
+                  class="btn btn-sm btn-info view-proof"
+                  data-proof-url="{{ claim.proof_of_need.url }}"
+                >
+                  View
+                </button>
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
             <td data-order="{{ claim.created_at|date:'Y-m-d H:i:s' }}">
               {{ claim.created_at|date:"F j, Y g:i A" }}
             </td>
             <td>
               {% if claim.status == 'pending' %}
               <div class="btn-group" role="group">
-                <button type="button" class="btn btn-sm btn-success approve-claim">Approve</button>
-                <button type="button" class="btn btn-sm btn-danger reject-claim">Reject</button>
+                <button
+                 type="button"
+                 class="btn btn-sm btn-success approve-claim"
+                 data-claim-id="{{ claim.id }}"
+                 data-willing="{{ claim.willing_partial|yesno:'true,false' }}"
+                >
+                  Approve
+                </button>
+                <button type="button" class="btn btn-sm btn-danger reject-claim" data-claim-id="{{ claim.id }}">Reject</button>
               </div>
               {% else %}
               <span class="badge bg-label-secondary">No Actions</span>
@@ -87,6 +132,17 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
+        <div class="form-floating form-floating-outline mb-3" id="amountGroup" style="display: none;">
+          <input
+            type="number"
+            step="0.01"
+            min="0.01"
+            id="approveAmountInput"
+            class="form-control"
+            placeholder="Amount to approve"
+          >
+          <label for="approveAmountInput">Amount to Approve (₱)</label>
+        </div>
         <div class="form-floating form-floating-outline mb-3">
           <input type="text" id="approveRefInput" class="form-control" placeholder="Reference Number">
           <label for="approveRefInput">Reference Number</label>
@@ -117,6 +173,24 @@
       </div>
       <div class="modal-footer">
         <button id="rejectConfirmBtn" class="btn btn-danger" disabled>Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <!-- Proof Viewer Modal -->
+<div class="modal fade" id="proofModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Proof of Need</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+        <!-- Container where we’ll inject the proof -->
+        <div id="proofContainer" style="min-height:300px;">
+          <!-- JS will insert an <img> or <iframe> here -->
+        </div>
       </div>
     </div>
   </div>

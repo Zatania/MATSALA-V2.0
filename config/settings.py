@@ -227,3 +227,9 @@ CSRF_TRUSTED_ORIGINS = [
 # Your stuff...
 # ------------------------------------------------------------------------------
 AUTH_USER_MODEL = "core.User"
+
+# Where uploaded files are stored on disk
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")  # or "media", whichever you prefer
+
+# URL that serves those files
+MEDIA_URL = "/media/"

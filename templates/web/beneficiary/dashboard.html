@@ -245,21 +245,71 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <form id="requestForm">
+          <form id="requestForm" enctype="multipart/form-data">
+             <input type="hidden" name="need_type" id="formNeedType" value="">
+             <div class="mb-3 form-check">
+                 <input
+                   type="checkbox"
+                   id="willingPartial"
+                   name="willing_partial"
+                   class="form-check-input"
+                 >
+                 <label class="form-check-label" for="willingPartial">
+                    I am willing to receive partial assistance if full amount is unavailable
+                 </label>
+             </div>
             <div class="mb-4">
-              <label for="requestedAmount" class="form-label">Requested Amount (₱)</label>
-              <input
-                type="number"
-                id="requestedAmount"
-                class="form-control"
-                placeholder="₱0.00"
-                min="1"
-                step="1"
-                required
-              >
-              <div id="amountHelp" class="form-text">
-                Please enter an amount in pesos (₱). Minimum ₱1.
-              </div>
+                <label for="requestedAmount" class="form-label">Requested Amount (₱)</label>
+                <input
+                    type="number"
+                    id="requestedAmount"
+                    class="form-control"
+                    name="requested_amount"
+                    placeholder="0.00"
+                    min="1"
+                    step="1"
+                    required
+                >
+                <div id="amountHelp" class="form-text">
+                    Please enter an amount in pesos (₱). Minimum ₱1.
+                </div>
+            </div>
+
+            <!-- Transport only: Purpose of Travel -->
+            <div class="mb-4 d-none" id="transportFields">
+                <label for="purposeOfTravel" class="form-label">Purpose of Travel</label>
+                <textarea
+                    name="purpose_of_travel"
+                    id="purposeOfTravel"
+                    class="form-control"
+                    rows="2"
+                    placeholder="Describe why you need transport"
+                ></textarea>
+            </div>
+
+            <!-- Rent only: Landlord's GCash Number -->
+            <div class="mb-4 d-none" id="rentFields">
+                <label for="landlordGcash" class="form-label">Landlord's GCash Number (optional)</label>
+                <input
+                    type="text"
+                    name="landlord_gcash_number"
+                    id="landlordGcash"
+                    class="form-control"
+                    placeholder="e.g. 09171234567"
+                >
+            </div>
+
+            <!-- Non-food only: Proof of Need -->
+            <div class="mb-4 d-none" id="proofFields">
+                <label for="proofUpload" class="form-label">Upload Proof of Need</label>
+                <input
+                    type="file"
+                    name="proof_of_need"
+                    id="proofUpload"
+                    class="form-control"
+                    accept=".pdf,image/*"
+                    required
+                >
             </div>
           </form>
         </div>
