@@ -2,12 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentNeed = '';
 
   // Modals
-  const faceModal = bootstrap.Modal.getOrCreateInstance('#authModal');
-  const needModal = bootstrap.Modal.getOrCreateInstance('#needSelectionModal');
-  const detailsModal = bootstrap.Modal.getOrCreateInstance('#requestDetailsModal');
-  const processingModal = bootstrap.Modal.getOrCreateInstance('#processingModal');
-  const pendingModal = bootstrap.Modal.getOrCreateInstance('#confirmationPendingModal');
-  const errorModal = bootstrap.Modal.getOrCreateInstance('#errorModal');
+  const faceModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('authModal'));
+  const needModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('needSelectionModal'));
+  const detailsModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('requestDetailsModal'));
+  const processingModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('processingModal'));
+  const pendingModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('confirmationPendingModal'));
+  const errorModal = bootstrap.Modal.getOrCreateInstance(document.getElementById('errorModal'));
 
   // DOM elements
   const fv = document.getElementById('faceVideo');
@@ -22,6 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnSubmit = document.getElementById('btnSubmitRequest');
   const errMsg = document.getElementById('errorMessage');
   const btnFinishPending = document.getElementById('btnFinishPending');
+
+  // make sure hiding the error modal also hides any stray processing modal
+  document.getElementById('errorModal').addEventListener('hidden.bs.modal', () => {
+    processingModal.hide();
+  });
 
   // Camera
   let camStream = null;
@@ -108,6 +113,10 @@ document.addEventListener('DOMContentLoaded', () => {
   needBtns.forEach(b =>
     b.addEventListener('click', () => {
       currentNeed = b.dataset.need;
+      document.getElementById('formNeedType').value = currentNeed;
+      document.getElementById('transportFields').classList.toggle('d-none', currentNeed !== 'transport');
+      document.getElementById('rentFields').classList.toggle('d-none', currentNeed !== 'rent');
+      document.getElementById('proofFields').classList.toggle('d-none', currentNeed === 'food');
       const labels = {
         food: 'Food Assistance',
         school_supplies: 'School Supplies',
@@ -127,16 +136,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Submit the request
   btnSubmit.addEventListener('click', async () => {
-    const amount = parseInt(amtInp.value, 10);
+    // const amount = parseInt(amtInp.value, 10);
+    const form = document.getElementById('requestForm');
+    const fd = new FormData(form);
+
     detailsModal.hide();
+    needModal.hide();
     processingModal.show();
 
     try {
       const res = await fetch('/web/beneficiary/new-request/', {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ need_type: currentNeed, requested_amount: amount })
+        // headers: { 'Content-Type': 'application/json' },
+        // body: JSON.stringify({ need_type: currentNeed, requested_amount: amount })
+        body: fd
       });
 
       const data = await res.json();
@@ -151,7 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
       processingModal.hide();
       errMsg.textContent = e.message;
       errorModal.show();
-      needModal.show();
     }
   });
 

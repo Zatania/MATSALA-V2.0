@@ -3,11 +3,13 @@ import datetime
 from datetime import timedelta
 import json
 import tempfile
+from decimal import Decimal
 
 import face_recognition
 import numpy as np
 from PIL import Image
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db.models.aggregates import Sum, Count
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
@@ -655,20 +657,55 @@ class BeneficiaryFaceVerifyView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class BeneficiaryWebNewRequestView(View):
-    def post(self, request):
-        data = json.loads(request.body)
-        need_type = data.get("need_type")
-        amount = data.get("requested_amount", 0)
-        try:
-            amount = float(amount)
-            valid_needs = dict(Claim.NEED_CHOICES).keys()
-            if amount <= 0 or need_type not in valid_needs:
-                raise ValueError
-        except (TypeError, ValueError):
-            return JsonResponse({"error": "Invalid data"}, status=400)
+  def post(self, request):
+    """
+    Expects multipart/form-data with:
+      - need_type
+      - requested_amount
+      - willing_partial (“on” if checked)
+      - purpose_of_travel (opt)
+      - landlord_gcash_number (opt)
+      - proof_of_need (file, required for non-food)
+    """
+    # 1. Read simple fields from POST
+    need_type = request.POST.get("need_type")
+    amt = request.POST.get("requested_amount")
+    try:
+      requested_amount = float(amt)
+    except (TypeError, ValueError):
+      return JsonResponse({"error": "Invalid amount"}, status=400)
 
-        create_claim(user_id=request.user.id, need_type=need_type, requested_amount=amount)
-        return JsonResponse({"success": True})
+    # 2. Read the extra enhancements
+    willing_partial = request.POST.get("willing_partial") == "on"
+    purpose_of_travel = request.POST.get("purpose_of_travel") or None
+    landlord_gcash_number = request.POST.get("landlord_gcash_number") or None
+    proof_file = request.FILES.get("proof_of_need")
+
+    # 3. Call your CRUD function (which invokes full_clean())
+    try:
+      create_claim(
+        user_id=request.user.id,
+        need_type=need_type,
+        requested_amount=requested_amount,
+        willing_partial=willing_partial,
+        purpose_of_travel=purpose_of_travel,
+        landlord_gcash_number=landlord_gcash_number,
+        proof_file=proof_file,
+      )
+    except ValidationError as e:
+      # Extract first error message
+      if hasattr(e, "message_dict"):
+        # field errors
+        msg = next(iter(e.message_dict.values()))[0]
+      else:
+        # non-field error
+        msg = e.messages[0]
+      return JsonResponse({"error": msg}, status=400)
+    except ValueError as e:
+      # e.g. wrong role or other ValueError from crud
+      return JsonResponse({"error": str(e)}, status=400)
+
+    return JsonResponse({"success": True})
 
 
 # -----------------------------------------------------------------------------
@@ -1124,15 +1161,18 @@ def admin_claim_action(request, claim_id):
 
   if action == "approve":
     ref = request.POST.get("gcash_payout_id", "").strip()
+    amount_str = request.POST.get("approved_amount", "").strip()
     if not ref:
       return JsonResponse({"error": "Reference number required."}, status=400)
     # Pass the reference number into your service
     try:
+      approved_amount = Decimal(amount_str) if amount_str else None
       update_claim_status(
         claim_id=claim_id,
         new_status="approved",
         admin_user_id=request.user.id,
-        gcash_payout_id=ref
+        gcash_payout_id=ref,
+        amount=approved_amount,
       )
     except Exception as e:
       return JsonResponse({"error": str(e)}, status=400)

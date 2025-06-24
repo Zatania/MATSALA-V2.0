@@ -16,7 +16,7 @@ $(function () {
   const dt = $('.datatables-claims').DataTable({
     autoWidth: false,
     scrollX: true,
-    order: [[5, 'desc']], // Order by date, newest first
+    order: [[3, 'desc']], // Order by Priority (4th column) descending
     dom:
       '<"row"' +
       '<"col-md-2"<l>>' +
@@ -43,33 +43,41 @@ $(function () {
         buttons: [
           {
             extend: 'print',
-            text: '<i class="ri-printer-line me-1"></i>Print',
-            className: 'dropdown-item',
-            exportOptions: { columns: [0, 1, 2, 3] }
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], // whatever columns you want
+              modifier: {
+                order: 'applied', // use the table’s current order
+                page: 'all' // export all pages, not just the current one
+              }
+            }
           },
           {
             extend: 'csv',
-            text: '<i class="ri-file-text-line me-1"></i>Csv',
-            className: 'dropdown-item',
-            exportOptions: { columns: [0, 1, 2, 3] }
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              modifier: { order: 'applied', page: 'all' }
+            }
           },
           {
             extend: 'excel',
-            text: '<i class="ri-file-excel-line me-1"></i>Excel',
-            className: 'dropdown-item',
-            exportOptions: { columns: [0, 1, 2, 3] }
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              modifier: { order: 'applied', page: 'all' }
+            }
           },
           {
             extend: 'pdf',
-            text: '<i class="ri-file-pdf-line me-1"></i>Pdf',
-            className: 'dropdown-item',
-            exportOptions: { columns: [0, 1, 2, 3] }
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              modifier: { order: 'applied', page: 'all' }
+            }
           },
           {
             extend: 'copy',
-            text: '<i class="ri-file-copy-line me-1"></i>Copy',
-            className: 'dropdown-item',
-            exportOptions: { columns: [0, 1, 2, 3] }
+            exportOptions: {
+              columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+              modifier: { order: 'applied', page: 'all' }
+            }
           }
         ]
       }
@@ -86,44 +94,74 @@ $(function () {
   const csrfToken = getCookie('csrftoken');
 
   // -- Track which row & claim -->
-  let currentRow, currentClaimId;
+  let currentRow, currentClaimId, allowsPartial;
 
   // -- Show Approve Modal --
   $(document).on('click', '.approve-claim', function () {
+    const $btn = $(this);
     currentRow = $(this).closest('tr');
-    currentClaimId = currentRow.data('claim-id');
+    currentClaimId = $btn.data('claim-id');
+
+    // EXPLICITALLY READ THE ATTRIBUTE AS A STRING
+    // DEBUG
+
+    allowsPartial = $(this).attr('data-willing') === 'true';
+
+    // reset inputs & error
     $('#approveRefInput').val('');
+    $('#approveAmountInput').val('');
     $('#approveError').hide();
     $('#approveConfirmBtn').prop('disabled', true);
+
+    // show or hide the amount-field container
+    if (allowsPartial) {
+      $('#amountGroup').show();
+    } else {
+      $('#amountGroup').hide();
+    }
+
     new bootstrap.Modal(document.getElementById('approveModal')).show();
   });
 
-  // enable Confirm when input non-empty
-  $('#approveRefInput').on('input', function () {
-    $('#approveConfirmBtn').prop('disabled', !this.value.trim());
+  // Enable Confirm only when ref is provided—and if partial, when amount>0
+  $('#approveRefInput, #approveAmountInput').on('input', function () {
+    const refOk = $('#approveRefInput').val().trim() !== '';
+    const amtOk = !allowsPartial || parseFloat($('#approveAmountInput').val()) > 0;
+    $('#approveConfirmBtn').prop('disabled', !(refOk && amtOk));
   });
 
   // handle Approve confirm
+  // Submit the approval
   $('#approveConfirmBtn').on('click', function () {
     const ref = $('#approveRefInput').val().trim();
-    if (!ref) {
-      $('#approveError').text('Reference number required.').show();
-      return;
+    const payload = { action: 'approve', gcash_payout_id: ref };
+
+    if (allowsPartial) {
+      payload.approved_amount = $('#approveAmountInput').val().trim();
     }
+
     $.ajax({
       url: `/web/admin/claims/${currentClaimId}/action/`,
       method: 'POST',
-      data: { action: 'approve', gcash_payout_id: ref },
+      data: payload,
+      headers: { 'X-CSRFToken': csrfToken },
       success() {
         $('#approveModal').modal('hide');
-        // update row
-        currentRow.find('td').eq(2).text('Approved');
-        currentRow.find('td').eq(4).html('<span class="badge bg-label-secondary">No Actions</span>');
-        Swal.fire('Approved', 'Claim has been approved.', 'success');
+
+        // Update status cell
+        let html = 'Approved<br><small class="text-muted">Ref: ' + ref + '</small>';
+        if (allowsPartial) {
+          html += '<br><small class="text-muted">Amt: ₱' + payload.approved_amount + '</small>';
+        }
+        currentRow.find('.claim-status-cell').html(html);
+
+        // No more actions
+        currentRow.find('td').last().html('<span class="badge bg-label-secondary">No Actions</span>');
+
+        Swal.fire('Approved', 'Claim approved successfully.', 'success');
       },
       error(xhr) {
-        let msg =
-          xhr.responseJSON && xhr.responseJSON.error ? xhr.responseJSON.error : xhr.statusText || 'Error approving';
+        const msg = xhr.responseJSON?.error || 'Error approving';
         $('#approveError').text(msg).show();
       }
     });
@@ -131,8 +169,9 @@ $(function () {
 
   // -- Show Reject Modal --
   $(document).on('click', '.reject-claim', function () {
+    const $btn = $(this);
     currentRow = $(this).closest('tr');
-    currentClaimId = currentRow.data('claim-id');
+    currentClaimId = $btn.data('claim-id');
     $('#rejectReasonInput').val('');
     $('#rejectError').hide();
     $('#rejectConfirmBtn').prop('disabled', true);
@@ -157,9 +196,13 @@ $(function () {
       data: { action: 'reject', reason: reason },
       success() {
         $('#rejectModal').modal('hide');
-        // update row
-        currentRow.find('td').eq(2).text('Rejected');
-        currentRow.find('td').eq(4).html('<span class="badge bg-label-secondary">No Actions</span>');
+
+        currentRow
+          .find('.claim-status-cell')
+          .html('Rejected<br><small class="text-muted">Reason: ' + reason + '</small>');
+
+        currentRow.find('td').last().html('<span class="badge bg-label-secondary">No Actions</span>');
+
         Swal.fire('Rejected', 'Claim has been rejected.', 'success');
       },
       error(xhr) {
@@ -168,5 +211,27 @@ $(function () {
         $('#rejectError').text(msg).show();
       }
     });
+  });
+
+  // Proof-viewer handler
+  $(document).on('click', '.view-proof', function () {
+    const url = $(this).data('proof-url');
+    const container = $('#proofContainer').empty();
+
+    // Determine file type by extension
+    const ext = url.split('.').pop().toLowerCase();
+    if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) {
+      // Show image
+      $('<img>').attr('src', url).css({ 'max-width': '100%', 'max-height': '70vh' }).appendTo(container);
+    } else if (ext === 'pdf') {
+      // Embed PDF
+      $('<iframe>').attr({ src: url, width: '100%', height: '70vh', frameborder: 0 }).appendTo(container);
+    } else {
+      // Fallback link
+      $('<a>').attr({ href: url, target: '_blank' }).text('Download/View proof').appendTo(container);
+    }
+
+    // Show the modal
+    new bootstrap.Modal(document.getElementById('proofModal')).show();
   });
 });

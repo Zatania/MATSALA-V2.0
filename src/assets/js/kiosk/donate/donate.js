@@ -34,30 +34,47 @@ document.addEventListener('DOMContentLoaded', function () {
     const lastNameInput = modal.querySelector(inputSelectors.lastName);
     const usernameInput = modal.querySelector(inputSelectors.username);
 
-    // Show/hide named fields based on picker; then update Done-button state
+    // Optional amount input (only for GCash)
+    const amountInput = inputSelectors.amount ? modal.querySelector(inputSelectors.amount) : null;
+    const amountError = inputSelectors.amountError ? modal.querySelector(inputSelectors.amountError) : null;
+
+    // QR wrapper
+    const qrWrapper = document.getElementById('gcashQrImageWrapper');
+
+    // Show/hide Named fields and then reevaluate “Done” state
     function updateView() {
-      if (picker.value === 'Named') {
-        namedFields.style.display = 'block';
-      } else {
-        namedFields.style.display = 'none';
-      }
+      namedFields.style.display = picker.value === 'Named' ? 'block' : 'none';
       updateDoneButtonState();
     }
 
-    // If Anonymous → enable "Done" immediately; if Named → wait for first+last
+    // Decide whether “Done” should be enabled, show/hide error
     function updateDoneButtonState() {
-      if (picker.value === 'Anonymous') {
-        doneButton.disabled = false;
-      } else {
-        const isFirstFilled = firstNameInput.value.trim() !== '';
-        const isLastFilled = lastNameInput.value.trim() !== '';
-        doneButton.disabled = !(isFirstFilled && isLastFilled);
+      // 1) Name logic
+      let enabled =
+        picker.value === 'Anonymous' ? true : firstNameInput.value.trim() !== '' && lastNameInput.value.trim() !== '';
+
+      // 2) Amount logic (if present)
+      if (amountInput) {
+        const raw = amountInput.value.trim();
+        const amt = parseFloat(raw);
+        const validAmt = !isNaN(amt) && amt > 0 && amt <= 10000;
+
+        // validation message
+        if (amountError) {
+          amountError.style.display = validAmt ? 'none' : 'block';
+        }
+
+        enabled = enabled && validAmt;
       }
+
+      doneButton.disabled = !enabled;
     }
 
     // When modal opens, reset tally (if applicable) and view
     modal.addEventListener('shown.bs.modal', () => {
       updateView();
+      if (amountError) amountError.style.display = 'none';
+      if (qrWrapper) qrWrapper.style.display = 'none';
       /* if (tallyDisplay) {
         tallyDisplay.textContent = '0.00';
       } */
@@ -68,6 +85,9 @@ document.addEventListener('DOMContentLoaded', function () {
       firstNameInput.value = '';
       lastNameInput.value = '';
       usernameInput.value = '';
+      if (amountInput) amountInput.value = '';
+      if (amountError) amountError.style.display = 'none';
+      if (qrWrapper) qrWrapper.style.display = 'none';
       /* if (tallyDisplay) {
         tallyDisplay.textContent = '0.00';
       } */
@@ -80,6 +100,26 @@ document.addEventListener('DOMContentLoaded', function () {
     picker.addEventListener('change', updateView);
     firstNameInput.addEventListener('input', updateDoneButtonState);
     lastNameInput.addEventListener('input', updateDoneButtonState);
+
+    // If we have an amount field, wire its own listener
+    if (amountInput) {
+      amountInput.addEventListener('input', () => {
+        const raw = amountInput.value.trim();
+        const amt = parseFloat(raw);
+        const validAmt = !isNaN(amt) && amt > 0 && amt <= 10000;
+
+        // only update QR when valid
+        if (validAmt) {
+          updateGcashQrFromInput(); // your existing function that reads the field
+          qrWrapper.style.display = 'block';
+        } else {
+          qrWrapper.style.display = 'none';
+        }
+
+        // always re-check Done button
+        updateDoneButtonState();
+      });
+    }
   }
 
   // ––––––––––– Apply logic to both Coin Slot and GCash modals –––––––––––
@@ -92,16 +132,36 @@ document.addEventListener('DOMContentLoaded', function () {
   setupDonationModal('gcashModal', 'gcashpickerDonationType', 'gcashnamedFields', 'gcashDoneBtn', null, {
     firstName: '#gcashFirstName',
     lastName: '#gcashLastName',
-    username: '#gcashUsername'
+    username: '#gcashUsername',
+    amount: '#gcashCustomAmount',
+    amountError: '#gcashAmountError'
   });
 
   // ––––––––––– GCash QR display logic (unchanged) –––––––––––
-  const gcashAmountSelect = document.getElementById('gcashpickerAmountQR');
+  // const gcashAmountSelect = document.getElementById('gcashpickerAmountQR');
+  const gcashCustomAmount = document.getElementById('gcashCustomAmount');
   const gcashQrWrapper = document.getElementById('gcashQrImageWrapper');
   const gcashQrImage = document.getElementById('gcashQrImage');
   const gcashQrText = document.getElementById('gcashQrText');
 
-  const amountToImageMap = {
+  // Set your static QR or fallback logic here
+  function updateGcashQrFromInput() {
+    const amount = parseFloat(gcashCustomAmount.value);
+    if (!isNaN(amount) && amount <= 10000) {
+      gcashQrImage.src = '/static/img/kiosk/qr.jpg'; // Replace with your static QR
+      gcashQrText.textContent = `Scan this with your GCash app to pay ₱${amount.toFixed(2)}`;
+      gcashQrWrapper.style.display = 'block';
+    } else {
+      gcashQrWrapper.style.display = 'none';
+      gcashQrText.textContent = '';
+    }
+  }
+
+  gcashCustomAmount.addEventListener('input', () => {
+    updateGcashQrFromInput();
+  });
+
+  /* const amountToImageMap = {
     5: '/static/img/kiosk/qr-5.jpg',
     10: '/static/img/kiosk/qr-10.jpg',
     20: '/static/img/kiosk/qr-20.jpg',
@@ -137,7 +197,7 @@ document.addEventListener('DOMContentLoaded', function () {
     gcashQrImage.src = '';
     gcashQrText.textContent = '';
     $(gcashAmountSelect).selectpicker('val', '5');
-  });
+  }); */
 
   // ––––––––––– Reference‐Number Modal Logic (only for GCash) –––––––––––
   const gcashDoneBtn = document.getElementById('gcashDoneBtn');
@@ -153,18 +213,34 @@ document.addEventListener('DOMContentLoaded', function () {
     referenceModal.show();
   }
 
+  // gcashDoneBtn.addEventListener('click', function () {
+  //   showReferenceModal();
+  // });
+
   gcashDoneBtn.addEventListener('click', function () {
+    const amount = parseFloat(gcashCustomAmount.value);
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid donation amount.');
+      return;
+    }
     showReferenceModal();
   });
 
+  // referenceNumberInput.addEventListener('input', function () {
+  //   if (referenceNumberInput.value.trim() === '') {
+  //     referenceConfirmBtn.disabled = true;
+  //     referenceError.style.display = 'none';
+  //   } else {
+  //     referenceConfirmBtn.disabled = false;
+  //     referenceError.style.display = 'none';
+  //   }
+  // });
+
   referenceNumberInput.addEventListener('input', function () {
-    if (referenceNumberInput.value.trim() === '') {
-      referenceConfirmBtn.disabled = true;
-      referenceError.style.display = 'none';
-    } else {
-      referenceConfirmBtn.disabled = false;
-      referenceError.style.display = 'none';
-    }
+    const value = referenceNumberInput.value.trim();
+    const isValid = /^[0-9]{12,12}$/.test(value); // Example: numeric, 10–20 digits
+    referenceConfirmBtn.disabled = !isValid;
+    referenceError.style.display = isValid ? 'none' : 'block';
   });
 
   referenceConfirmBtn.addEventListener('click', function () {
@@ -185,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Build payload
     const donationType = document.getElementById('gcashpickerDonationType').value;
-    const amount = document.getElementById('gcashpickerAmountQR').value;
+    const amount = document.getElementById('gcashCustomAmount').value;
     const payload = {
       donation_type: donationType,
       amount: amount,

@@ -14,6 +14,8 @@ from .models import (
   AuditLog, SystemBalance,
 )
 
+from decimal import Decimal
+
 User = get_user_model()
 
 
@@ -287,7 +289,7 @@ def get_system_disbursed() -> SystemBalance:
 # 3. CLAIM‐RELATED CRUD
 # -----------------------------------------------------------------------------
 
-def create_claim(user_id: int, need_type: str, requested_amount: float) -> Claim:
+def create_claim(user_id: int, need_type: str, requested_amount: float, willing_partial: bool = False, purpose_of_travel: str = None, landlord_gcash_number: str = None, proof_file=None,) -> Claim:
     """
     Create a new Claim with status='pending'. User must have role='beneficiary'.
     """
@@ -295,12 +297,30 @@ def create_claim(user_id: int, need_type: str, requested_amount: float) -> Claim
     if user.role != "beneficiary":
         raise ValueError("User is not a beneficiary.")
 
-    claim = Claim.objects.create(
-        user=user,
-        need_type=need_type,
-        requested_amount=requested_amount,
-        status="pending",
+    # claim = Claim.objects.create(
+    #     user=user,
+    #     need_type=need_type,
+    #     requested_amount=requested_amount,
+    #     status="pending",
+    # )
+    # Build kwargs for the new Claim
+    params = dict(
+        user = user,
+        need_type = need_type,
+        requested_amount = requested_amount,
+        willing_partial = willing_partial,
+        purpose_of_travel = purpose_of_travel or "",
+        landlord_gcash_number = landlord_gcash_number or "",
+        status = "pending",
     )
+
+    if proof_file:
+        params["proof_of_need"] = proof_file
+
+    claim = Claim(**params)
+    # run model-level validations (two-week rule, required fields, proof)
+    claim.full_clean()
+    claim.save()
     print(">>> Claim saved with ID:", claim.id)
     return claim
 
@@ -315,6 +335,7 @@ def update_claim_status(
     admin_user_id: int,
     reason: str = "",
     gcash_payout_id: str = None,
+    amount: Decimal = None,
 ) -> Claim:
     claim = get_claim_by_id(claim_id)
     admin = get_user_by_id(admin_user_id)
@@ -323,11 +344,12 @@ def update_claim_status(
 
     if new_status == "approved":
         system_balance, _ = SystemBalance.objects.get_or_create(id=1)
-        if claim.requested_amount > system_balance.total_balance:
-            raise ValueError("Insufficient system balance for payout.")
+        approved_amount = amount or claim.requested_amount  # Default to full
+        if approved_amount > system_balance.total_balance:
+          raise ValueError("Insufficient system balance for payout.")
 
-        system_balance.total_balance -= claim.requested_amount
-        system_balance.total_disbursed += claim.requested_amount
+        system_balance.total_balance -= approved_amount
+        system_balance.total_disbursed += approved_amount
         system_balance.save()
 
         # Update beneficiary balance
@@ -375,7 +397,7 @@ def list_all_claims(need_type: str = None, status: str = None):
         qs = qs.filter(need_type=need_type)
     if status:
         qs = qs.filter(status=status)
-    return qs.order_by("-created_at")
+    return qs.order_by("-priority", "-created_at")
 
 
 # -----------------------------------------------------------------------------

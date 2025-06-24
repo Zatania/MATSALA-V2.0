@@ -5,6 +5,7 @@ from datetime import datetime
 
 from django.conf import settings
 from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -65,7 +66,24 @@ def user_photo_upload_path(instance, filename):
   last = slugify(user.last_name or "last")
 
   new_filename = f"{first}_{last}_{timestamp}_{unique_id}{ext}"
-  return os.path.join("uploads/img", new_filename)
+  return os.path.join("img", new_filename)
+
+
+def proof_photo_upload_path(instance, filename):
+  """
+  uploads/proofs/{firstname}_{lastname}_{need_type}_{timestamp}_{uuid}{ext}
+  """
+  base, ext = os.path.splitext(filename)
+  user = instance.user
+  ts = datetime.now().strftime("%Y%m%d%H%M%S")
+  uid = uuid.uuid4().hex[:8]
+
+  first = slugify(user.first_name or "first")
+  last = slugify(user.last_name or "last")
+  need = slugify(instance.need_type)  # e.g. "food", "rent", etc.
+
+  new_name = f"{first}_{last}_{need}_{ts}_{uid}{ext}"
+  return os.path.join("proofs", new_name)
 
 class UserPhoto(models.Model):
     """
@@ -227,11 +245,70 @@ class Claim(models.Model):
         help_text="Must have role='admin'."
     )
     admin_decision_reason = models.TextField(blank=True, null=True)
+
+    # New fields for enhancements:
+    willing_partial = models.BooleanField(
+        default=False,
+        help_text="Check if you’re willing to accept partial assistance."
+    )
+    landlord_gcash_number = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="If requesting rent aid, optional landlord GCash number."
+    )
+    purpose_of_travel = models.TextField(
+        blank=True,
+        null=True,
+        help_text="(Required for Transport requests) Describe purpose of travel."
+    )
+    # Priority score for sorting in admin dashboard
+    priority = models.PositiveSmallIntegerField(
+        default=0,
+        db_index=True,
+        help_text="Automatically set based on need_type."
+    )
+    proof_of_need = models.FileField(
+      upload_to=proof_photo_upload_path,
+      blank=True, null=True,
+      help_text="PDF/image proof required for non-food requests."
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     processed_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
         return f"Claim #{self.id} by {self.user.username} ({self.need_type}) – {self.status}"
+
+    def clean(self):
+        # 2-week restriction
+        last = (Claim.objects
+                .filter(user=self.user, status__in=['approved', 'paid'])
+                .order_by('-processed_at')
+                .first())
+        if last and (timezone.now() - last.processed_at).days < 14:
+            raise ValidationError("You may only receive assistance once every two weeks.")
+
+        # Rent → landlord number optional; Transport → purpose required
+        if self.need_type == 'transport' and not self.purpose_of_travel:
+            raise ValidationError({"purpose_of_travel": "Purpose of travel is required for transport assistance."})
+
+        # Non-food needs require proof upload
+        if self.need_type != 'food' and not self.proof_of_need:
+            raise ValidationError({"proof_of_need": "Please upload proof of need for this request."})
+
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        # Auto-assign priority on create/update
+        priority_map = {
+            'food': 10,
+            'school_supplies': 8,
+            'transport': 6,
+            'rent': 4,
+        }
+        self.priority = priority_map.get(self.need_type, 0)
+        super().save(*args, **kwargs)
 
 
 # -----------------------------------------------------------------------------
