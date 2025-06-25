@@ -15,7 +15,7 @@ function initCoinSocket() {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
       // coerce to number in case it's a string
-      const delta = Number(data.delta);
+      const delta = data.delta;
       if (!isNaN(delta)) sessionCount += delta;
       document.getElementById('coinTally').textContent = sessionCount.toFixed(2);
       document.getElementById('coinDoneBtn').disabled = sessionCount <= 0;
