@@ -1,5 +1,4 @@
 let coinSocket = null;
-let currentCount = 0;
 function initCoinSocket() {
   const loc = window.location;
   const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
@@ -14,14 +13,10 @@ function initCoinSocket() {
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      const value = parseFloat(data.coin_count);
-      const increment = !isNaN(value) ? value : 1; // Default to 1 if not provided
-
-      currentCount += increment;
+      document.getElementById('coinTally').textContent = parseFloat(data.coin_count).toFixed(2);
+      document.getElementById('coinDoneBtn').disabled = false;
     }
   };
-  document.getElementById('coinTally').textContent = currentCount.toFixed(2);
-  document.getElementById('coinDoneBtn').disabled = false;
 }
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
@@ -322,7 +317,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // When the coin modal opens:
   coinModalEl.addEventListener('shown.bs.modal', () => {
     // reset tally & disable Done
-    currentCount = 0;
     document.getElementById('coinTally').textContent = '0.00';
     document.getElementById('coinDoneBtn').disabled = true;
 
@@ -333,11 +327,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // When the coin modal closes:
   coinModalEl.addEventListener('hidden.bs.modal', () => {
     // close WS if open
-    if (coinSocket) {
+    if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
+      coinSocket.send(JSON.stringify({ event: 'reset_coins' }));
       coinSocket.close();
       coinSocket = null;
     }
-    currentCount = 0;
     // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
@@ -378,6 +372,11 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(res => res.json().then(data => ({ status: res.status, body: data })))
       .then(({ status, body }) => {
         if (status === 200 && body.success) {
+          if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
+            coinSocket.send(JSON.stringify({ event: 'reset_coins' }));
+            coinSocket.close();
+            coinSocket = null;
+          }
           $('#coinModal').modal('hide');
           new bootstrap.Modal(document.getElementById('thankYouModal')).show();
         } else {
