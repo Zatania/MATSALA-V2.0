@@ -1,4 +1,5 @@
 let coinSocket = null;
+let currentCount = 0;
 function initCoinSocket() {
   const loc = window.location;
   const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
@@ -10,11 +11,10 @@ function initCoinSocket() {
     console.log('Coin WS closed, retrying in 5s');
     setTimeout(initCoinSocket, 5000);
   };
-  let currentCount = 0;
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      currentCount += parseFloat(data.coin_count);
+      currentCount += parseFloat(data.coin_count || 1);
       document.getElementById('coinTally').textContent = currentCount.toFixed(2);
       document.getElementById('coinDoneBtn').disabled = false;
     }
@@ -319,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // When the coin modal opens:
   coinModalEl.addEventListener('shown.bs.modal', () => {
     // reset tally & disable Done
+    currentCount = 0;
     document.getElementById('coinTally').textContent = '0.00';
     document.getElementById('coinDoneBtn').disabled = true;
 
@@ -333,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
       coinSocket.close();
       coinSocket = null;
     }
+    currentCount = 0;
     // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
