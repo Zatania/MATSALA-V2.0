@@ -7,7 +7,8 @@ function initCoinSocket() {
 
   coinSocket.onopen = () => console.log('Coin WS open');
   coinSocket.onclose = () => {
-    console.log('Coin WS closed.');
+    console.log('Coin WS closed, retrying in 5s');
+    setTimeout(initCoinSocket, 5000);
   };
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
@@ -19,6 +20,15 @@ function initCoinSocket() {
 }
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('resetTestBtn').addEventListener('click', () => {
+    console.log('>>> Test button clicked, sending reset');
+    if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
+      coinSocket.send(JSON.stringify({ event: 'reset' }));
+      console.log('>>> reset sent');
+    } else {
+      console.warn('Socket not open');
+    }
+  });
   /* // initialize coin socket
   initCoinSocket(); */
   // Utility to handle donation-type view logic (show/hide name fields, toggle "Done")
@@ -324,24 +334,13 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // When the coin modal closes:
-  // inside DOMContentLoaded…
-  $('#coinModal').on('hidden.bs.modal', () => {
-    console.log('⦿ [jQuery] hidden.bs.modal fired');
-    if (!coinSocket) return;
-
-    console.log('readyState before reset:', coinSocket.readyState);
-    if (coinSocket.readyState === WebSocket.OPEN) {
-      coinSocket.send(JSON.stringify({ event: 'reset' }));
-      console.log('[Browser → WS] reset sent');
-      // give it a moment before closing
-      setTimeout(() => {
-        coinSocket.close();
-        coinSocket = null;
-      }, 50);
-    } else {
-      console.warn('[Browser → WS] cannot send reset; socket not open');
+  coinModalEl.addEventListener('hidden.bs.modal', () => {
+    // close WS if open
+    if (coinSocket) {
+      coinSocket.close();
+      coinSocket = null;
     }
-
+    // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
 
