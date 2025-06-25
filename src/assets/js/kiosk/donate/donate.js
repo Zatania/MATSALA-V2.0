@@ -325,14 +325,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // When the coin modal closes:
   coinModalEl.addEventListener('hidden.bs.modal', () => {
-    if (coinSocket) {
+    if (!coinSocket) return;
+
+    console.log('readyState before reset:', coinSocket.readyState);
+    // 0 = CONNECTING, 1 = OPEN, 2 = CLOSING, 3 = CLOSED
+
+    if (coinSocket.readyState === WebSocket.OPEN) {
       coinSocket.send(JSON.stringify({ event: 'reset' }));
-      // give it a moment to flush
-      setTimeout(() => {
-        coinSocket.close();
-        coinSocket = null;
-      }, 50);
+      console.log('[Browser → WS] reset sent');
+    } else {
+      console.warn('[Browser → WS] cannot send reset; socket not open');
     }
+
+    coinSocket.close();
+    coinSocket = null;
     document.getElementById('coinTally').textContent = '0.00';
   });
 
