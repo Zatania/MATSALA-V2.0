@@ -14,7 +14,7 @@ function initCoinSocket() {
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      currentCount += parseFloat(data.coin_count);
+      currentCount += parseFloat(data.delta);
       document.getElementById('coinTally').textContent = currentCount.toFixed(2);
       document.getElementById('coinDoneBtn').disabled = false;
     }
