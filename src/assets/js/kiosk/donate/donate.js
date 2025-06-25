@@ -20,15 +20,6 @@ function initCoinSocket() {
 }
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
-  document.getElementById('resetTestBtn').addEventListener('click', () => {
-    console.log('>>> Test button clicked, sending reset');
-    if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
-      coinSocket.send(JSON.stringify({ event: 'reset' }));
-      console.log('>>> reset sent');
-    } else {
-      console.warn('Socket not open');
-    }
-  });
   /* // initialize coin socket
   initCoinSocket(); */
   // Utility to handle donation-type view logic (show/hide name fields, toggle "Done")
@@ -337,6 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
   coinModalEl.addEventListener('hidden.bs.modal', () => {
     // close WS if open
     if (coinSocket) {
+      coinSocket.send(JSON.stringify({ event: 'reset' }));
       coinSocket.close();
       coinSocket = null;
     }
