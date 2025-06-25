@@ -1,4 +1,5 @@
 let coinSocket = null;
+let sessionCount = 0;
 function initCoinSocket() {
   const loc = window.location;
   const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
@@ -13,8 +14,9 @@ function initCoinSocket() {
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      document.getElementById('coinTally').textContent = parseFloat(data.coin_count).toFixed(2);
-      document.getElementById('coinDoneBtn').disabled = false;
+      sessionCount += data.delta;
+      document.getElementById('coinTally').textContent = sessionCount.toFixed(2);
+      document.getElementById('coinDoneBtn').disabled = sessionCount <= 0;
     }
   };
 }
@@ -317,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // When the coin modal opens:
   coinModalEl.addEventListener('shown.bs.modal', () => {
     // reset tally & disable Done
+    sessionCount = 0;
     document.getElementById('coinTally').textContent = '0.00';
     document.getElementById('coinDoneBtn').disabled = true;
 
@@ -331,6 +334,7 @@ document.addEventListener('DOMContentLoaded', function () {
       coinSocket.close();
       coinSocket = null;
     }
+    sessionCount = 0;
     // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
