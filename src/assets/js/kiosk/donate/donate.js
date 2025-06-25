@@ -1,5 +1,7 @@
 let coinSocket = null;
+let manualClose = false;
 function initCoinSocket() {
+  manualClose = false;
   const loc = window.location;
   const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
   const socketUrl = `${wsProtocol}://${loc.host}/ws/coins/`;
@@ -7,9 +9,12 @@ function initCoinSocket() {
 
   coinSocket.onopen = () => console.log('Coin WS open');
   coinSocket.onclose = () => {
-    console.log('Coin WS closed, retrying in 5s');
-    setTimeout(initCoinSocket, 5000);
+    console.log('Coin WS closed', manualClose ? '(manual)' : '(unexpected), retrying in 5s');
+    if (!manualClose) {
+      setTimeout(initCoinSocket, 5000);
+    }
   };
+
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
@@ -328,8 +333,9 @@ document.addEventListener('DOMContentLoaded', function () {
   coinModalEl.addEventListener('hidden.bs.modal', () => {
     // close WS if open
     if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
+      manualClose = true; // <-- suppress reconnect
       coinSocket.send(JSON.stringify({ event: 'reset_coins' }));
-      coinSocket.close();
+      coinSocket.close(); // <-- triggers onclose(manual=true)
       coinSocket = null;
     }
     // reset tally again (in case user re‑opens later)
@@ -373,8 +379,9 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(({ status, body }) => {
         if (status === 200 && body.success) {
           if (coinSocket && coinSocket.readyState === WebSocket.OPEN) {
+            manualClose = true; // <-- suppress reconnect
             coinSocket.send(JSON.stringify({ event: 'reset_coins' }));
-            coinSocket.close();
+            coinSocket.close(); // <-- triggers onclose(manual=true)
             coinSocket = null;
           }
           $('#coinModal').modal('hide');
