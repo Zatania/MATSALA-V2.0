@@ -18,10 +18,10 @@ function initCoinSocket() {
       const increment = !isNaN(value) ? value : 1; // Default to 1 if not provided
 
       currentCount += increment;
-      document.getElementById('coinTally').textContent = currentCount.toFixed(2);
-      document.getElementById('coinDoneBtn').disabled = false;
     }
   };
+  document.getElementById('coinTally').textContent = currentCount.toFixed(2);
+  document.getElementById('coinDoneBtn').disabled = false;
 }
 // donate.js
 document.addEventListener('DOMContentLoaded', function () {
