@@ -10,9 +10,6 @@ function initCoinSocket() {
   coinSocket.onopen = () => console.log('Coin WS open');
   coinSocket.onclose = () => {
     console.log('Coin WS closed', manualClose ? '(manual)' : '(unexpected), retrying in 5s');
-    if (!manualClose) {
-      setTimeout(initCoinSocket, 5000);
-    }
   };
 
   coinSocket.onmessage = evt => {
