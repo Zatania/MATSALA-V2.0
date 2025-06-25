@@ -14,10 +14,15 @@ function initCoinSocket() {
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      // coerce to number in case it's a string
-      const delta = data.delta;
-      console.log(delta);
-      if (!isNaN(delta)) sessionCount += delta;
+      // force numeric delta
+      const delta = Number(data.delta);
+      console.log('raw delta:', data.delta, '→ numeric delta:', delta);
+      if (Number.isFinite(delta)) {
+        sessionCount = delta;
+      } else {
+        console.warn('coin_ws: invalid delta, ignoring', data.delta);
+        return;
+      }
       document.getElementById('coinTally').textContent = sessionCount.toFixed(2);
       document.getElementById('coinDoneBtn').disabled = sessionCount <= 0;
     }
