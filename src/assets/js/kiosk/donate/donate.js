@@ -15,9 +15,9 @@ function initCoinSocket() {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
       currentCount += parseFloat(data.coin_count || 1);
-      document.getElementById('coinTally').textContent = currentCount.toFixed(2);
-      document.getElementById('coinDoneBtn').disabled = false;
     }
+    document.getElementById('coinTally').textContent = currentCount.toFixed(2);
+    document.getElementById('coinDoneBtn').disabled = false;
   };
 }
 // donate.js
