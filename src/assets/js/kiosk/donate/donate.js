@@ -1,5 +1,4 @@
 let coinSocket = null;
-let sessionCount = 0;
 function initCoinSocket() {
   const loc = window.location;
   const wsProtocol = loc.protocol === 'https:' ? 'wss' : 'ws';
@@ -11,20 +10,13 @@ function initCoinSocket() {
     console.log('Coin WS closed, retrying in 5s');
     setTimeout(initCoinSocket, 5000);
   };
+  let currentCount = 0;
   coinSocket.onmessage = evt => {
     const data = JSON.parse(evt.data);
     if (data.event === 'coin_inserted') {
-      // force numeric delta
-      const delta = Number(data.delta);
-      console.log('raw delta:', data.delta, '→ numeric delta:', delta);
-      if (Number.isFinite(delta)) {
-        sessionCount = delta;
-      } else {
-        console.warn('coin_ws: invalid delta, ignoring', data.delta);
-        return;
-      }
-      document.getElementById('coinTally').textContent = sessionCount.toFixed(2);
-      document.getElementById('coinDoneBtn').disabled = sessionCount <= 0;
+      currentCount += parseFloat(data.coin_count);
+      document.getElementById('coinTally').textContent = currentCount.toFixed(2);
+      document.getElementById('coinDoneBtn').disabled = false;
     }
   };
 }
@@ -327,7 +319,6 @@ document.addEventListener('DOMContentLoaded', function () {
   // When the coin modal opens:
   coinModalEl.addEventListener('shown.bs.modal', () => {
     // reset tally & disable Done
-    sessionCount = 0;
     document.getElementById('coinTally').textContent = '0.00';
     document.getElementById('coinDoneBtn').disabled = true;
 
@@ -342,7 +333,6 @@ document.addEventListener('DOMContentLoaded', function () {
       coinSocket.close();
       coinSocket = null;
     }
-    sessionCount = 0;
     // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
