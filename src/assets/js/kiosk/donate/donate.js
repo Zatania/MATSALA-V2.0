@@ -324,21 +324,24 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // When the coin modal closes:
-  coinModalEl.addEventListener('hidden.bs.modal', () => {
+  // inside DOMContentLoaded…
+  $('#coinModal').on('hidden.bs.modal', () => {
+    console.log('⦿ [jQuery] hidden.bs.modal fired');
     if (!coinSocket) return;
 
     console.log('readyState before reset:', coinSocket.readyState);
-    // 0 = CONNECTING, 1 = OPEN, 2 = CLOSING, 3 = CLOSED
-
     if (coinSocket.readyState === WebSocket.OPEN) {
       coinSocket.send(JSON.stringify({ event: 'reset' }));
       console.log('[Browser → WS] reset sent');
+      // give it a moment before closing
+      setTimeout(() => {
+        coinSocket.close();
+        coinSocket = null;
+      }, 50);
     } else {
       console.warn('[Browser → WS] cannot send reset; socket not open');
     }
 
-    coinSocket.close();
-    coinSocket = null;
     document.getElementById('coinTally').textContent = '0.00';
   });
 
@@ -378,7 +381,6 @@ document.addEventListener('DOMContentLoaded', function () {
       .then(res => res.json().then(data => ({ status: res.status, body: data })))
       .then(({ status, body }) => {
         if (status === 200 && body.success) {
-          coinSocket.send(JSON.stringify({ event: 'reset' }));
           $('#coinModal').modal('hide');
           new bootstrap.Modal(document.getElementById('thankYouModal')).show();
         } else {
