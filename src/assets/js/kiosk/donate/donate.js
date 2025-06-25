@@ -325,13 +325,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // When the coin modal closes:
   coinModalEl.addEventListener('hidden.bs.modal', () => {
-    // close WS if open
     if (coinSocket) {
       coinSocket.send(JSON.stringify({ event: 'reset' }));
-      coinSocket.close();
-      coinSocket = null;
+      // give it a moment to flush
+      setTimeout(() => {
+        coinSocket.close();
+        coinSocket = null;
+      }, 50);
     }
-    // reset tally again (in case user re‑opens later)
     document.getElementById('coinTally').textContent = '0.00';
   });
 
