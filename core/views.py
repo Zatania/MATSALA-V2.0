@@ -278,18 +278,35 @@ class DonorWebRegisterView(View):
     def post(self, request):
         data = request.POST
         username = data.get("username")
+        email = data.get("email", "")
         password = data.get("password")
         confirm_pw = data.get("confirm_password")
-        email = data.get("email", "")
-        phone = data.get("phone", "")
-        first_name = data.get("first_name", "")
-        last_name = data.get("last_name", "")
-        face_photo = request.FILES.get("face_photo")
 
+        # 1) basic match check
         if password != confirm_pw:
-            messages.error(request, "Passwords do not match.")
+          messages.error(request, "Passwords do not match.")
+          return redirect(reverse("web_donor_register"))
+
+        # 2) explicit uniqueness checks
+        if not username:
+          messages.error(request, "Username is required.")
+          return redirect(reverse("web_donor_register"))
+        if User.objects.filter(username=username).exists():
+          messages.error(request, "That username is already taken.")
+          return redirect(reverse("web_donor_register"))
+        if email:
+          # your Profile model enforces unique email
+          if Profile.objects.filter(email=email).exists():
+            messages.error(request, "That email is already in use.")
             return redirect(reverse("web_donor_register"))
 
+        # 3) collect the rest of the fields
+        phone = data.get("phone", "").strip()
+        first_name = data.get("first_name", "").strip()
+        last_name = data.get("last_name", "").strip()
+        face_photo = request.FILES.get("face_photo")
+
+        # 4) attempt creation
         try:
           donor = create_donor(
             username=username,
@@ -304,7 +321,7 @@ class DonorWebRegisterView(View):
           return redirect(reverse("web_donor_dashboard"))
 
         except IntegrityError as e:
-          messages.error(request, "Username, ID number, or email already exists.")
+          messages.error(request, "Username or email already exists.")
           return redirect(reverse("web_donor_register"))
         except Exception as e:
           messages.error(request, f"Registration failed: {str(e)}")

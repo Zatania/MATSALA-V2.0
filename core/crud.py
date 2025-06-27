@@ -36,25 +36,31 @@ def create_donor(
     """
     Create a new User with role='donor'. Optionally attach a registration photo.
     """
-    with transaction.atomic():
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            email=email,
-            first_name=first_name,
-            last_name=last_name,
-            role="donor",
-        )
-        user.phone = phone
-        user.save()
 
-        if face_photo_file:
-            UserPhoto.objects.create(
-                user=user,
-                photo=face_photo_file,
-                photo_type="registration",
-            )
-        return user
+    try:
+      with transaction.atomic():
+          user = User.objects.create_user(
+              username=username,
+              password=password,
+              email=email,
+              first_name=first_name,
+              last_name=last_name,
+              role="donor",
+          )
+          user.phone = phone
+          user.save()
+
+          if face_photo_file:
+              UserPhoto.objects.create(
+                  user=user,
+                  photo=face_photo_file,
+                  photo_type="registration",
+              )
+          return user
+
+    except IntegrityError as e:
+      # wrap DB errors in a ValidationError so the view can treat them uniformly
+      raise ValidationError("A user with your username, ID number, or email already exists.")
 
 
 def create_beneficiary(
