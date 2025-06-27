@@ -24,6 +24,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.views.decorators.csrf import csrf_exempt
 
+from auth.models import Profile
 from .crud import (
   create_donor,
   create_coin_donation,
@@ -485,48 +486,71 @@ class KioskBeneficiarySubmitClaimView(View):
 # 4. BENEFICIARY WEB PORTAL VIEWS (unchanged)
 # -----------------------------------------------------------------------------
 class BeneficiaryWebRegisterView(View):
-    def get(self, request):
-        return render(request, "web/beneficiary/register.html", {
-          "layout_path": "layout/layout_blank.html"
-        })
+  def get(self, request):
+    # no change here
+    return render(request, "web/beneficiary/register.html", {
+      "layout_path": "layout/layout_blank.html"
+    })
 
-    def post(self, request):
-        data = request.POST
-        idnumber = data.get("idnumber", "").strip()
-        username = data.get("username")
-        password = data.get("password")
-        confirm_pw = data.get("confirm_password")
-        email = data.get("email", "")
-        phone = data.get("phone", "")
-        first_name = data.get("first_name", "")
-        last_name = data.get("last_name", "")
-        face_photo = request.FILES.get("face_photo")
+  def post(self, request):
+    data = request.POST
+    idnumber = data.get("idnumber", "").strip()
+    username = data.get("username", "").strip()
+    email = data.get("email", "").strip()
+    password = data.get("password", "")
+    confirm_pw = data.get("confirm_password", "")
 
-        if password != confirm_pw:
-            messages.error(request, "Passwords do not match.")
-            return redirect(reverse("web_beneficiary_register"))
+    # 1) basic match check
+    if password != confirm_pw:
+      messages.error(request, "Passwords do not match.")
+      return redirect(reverse("web_beneficiary_register"))
 
-        try:
-          beneficiary = create_beneficiary(
-            idnumber=idnumber,
-            username=username,
-            password=password,
-            email=email,
-            phone=phone,
-            first_name=first_name,
-            last_name=last_name,
-            face_photo_file=face_photo,
-          )
-          login(request, beneficiary)
-          return redirect(reverse("web_beneficiary_dashboard"))
+    # 2) explicit uniqueness checks
+    if not username:
+      messages.error(request, "Username is required.")
+      return redirect(reverse("web_beneficiary_register"))
+    if User.objects.filter(username=username).exists():
+      messages.error(request, "That username is already taken.")
+      return redirect(reverse("web_beneficiary_register"))
+    if idnumber and User.objects.filter(idnumber=idnumber).exists():
+      messages.error(request, "That ID number is already registered.")
+      return redirect(reverse("web_beneficiary_register"))
+    if email:
+      # your Profile model enforces unique email
+      if Profile.objects.filter(email=email).exists():
+        messages.error(request, "That email is already in use.")
+        return redirect(reverse("web_beneficiary_register"))
 
-        except IntegrityError as e:
-          messages.error(request, "Username, ID number, or email already exists.")
-          return redirect(reverse("web_beneficiary_register"))
-        except Exception as e:
-          messages.error(request, f"Registration failed: {str(e)}")
-          return redirect(reverse("web_beneficiary_register"))
-        return redirect(reverse("web_beneficiary_dashboard"))
+    # 3) collect the rest of the fields
+    phone = data.get("phone", "").strip()
+    first_name = data.get("first_name", "").strip()
+    last_name = data.get("last_name", "").strip()
+    face_photo = request.FILES.get("face_photo")
+
+    # 4) attempt creation
+    try:
+      beneficiary = create_beneficiary(
+        idnumber=idnumber,
+        username=username,
+        password=password,
+        email=email,
+        phone=phone,
+        first_name=first_name,
+        last_name=last_name,
+        face_photo_file=face_photo,
+      )
+      login(request, beneficiary)
+      return redirect(reverse("web_beneficiary_dashboard"))
+
+    except ValidationError as ve:
+      messages.error(request, ve.message)
+    except IntegrityError:
+      messages.error(request,
+                     "An account with that username, ID number or email already exists.")
+    except Exception as e:
+      messages.error(request, f"Registration failed: {str(e)}")
+
+    return redirect(reverse("web_beneficiary_register"))
 
 class BeneficiaryWebLoginView(View):
     def get(self, request):
