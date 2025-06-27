@@ -10,6 +10,7 @@ import numpy as np
 from PIL import Image
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db.models.aggregates import Sum, Count
 from django.db.models import Q
 from django.shortcuts import render, get_object_or_404, redirect
@@ -288,7 +289,8 @@ class DonorWebRegisterView(View):
             messages.error(request, "Passwords do not match.")
             return redirect(reverse("web_donor_register"))
 
-        donor = create_donor(
+        try:
+          donor = create_donor(
             username=username,
             password=password,
             email=email,
@@ -296,9 +298,16 @@ class DonorWebRegisterView(View):
             last_name=last_name,
             phone=phone,
             face_photo_file=face_photo,
-        )
-        login(request, donor)
-        return redirect(reverse("web_donor_dashboard"))
+          )
+          login(request, donor)
+          return redirect(reverse("web_donor_dashboard"))
+
+        except IntegrityError as e:
+          messages.error(request, "Username, ID number, or email already exists.")
+          return redirect(reverse("web_donor_register"))
+        except Exception as e:
+          messages.error(request, f"Registration failed: {str(e)}")
+          return redirect(reverse("web_donor_register"))
 
 class DonorWebLoginView(View):
     def get(self, request):
@@ -497,7 +506,8 @@ class BeneficiaryWebRegisterView(View):
             messages.error(request, "Passwords do not match.")
             return redirect(reverse("web_beneficiary_register"))
 
-        beneficiary = create_beneficiary(
+        try:
+          beneficiary = create_beneficiary(
             idnumber=idnumber,
             username=username,
             password=password,
@@ -506,8 +516,16 @@ class BeneficiaryWebRegisterView(View):
             first_name=first_name,
             last_name=last_name,
             face_photo_file=face_photo,
-        )
-        login(request, beneficiary)
+          )
+          login(request, beneficiary)
+          return redirect(reverse("web_beneficiary_dashboard"))
+
+        except IntegrityError as e:
+          messages.error(request, "Username, ID number, or email already exists.")
+          return redirect(reverse("web_beneficiary_register"))
+        except Exception as e:
+          messages.error(request, f"Registration failed: {str(e)}")
+          return redirect(reverse("web_beneficiary_register"))
         return redirect(reverse("web_beneficiary_dashboard"))
 
 class BeneficiaryWebLoginView(View):
