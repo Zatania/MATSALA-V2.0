@@ -1,7 +1,8 @@
 # core/crud.py
 
 from django.conf import settings
-from django.db import transaction
+from django.core.exceptions import ValidationError
+from django.db import transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.contrib.auth import get_user_model
@@ -69,27 +70,31 @@ def create_beneficiary(
     """
     Create a new User with role='beneficiary'. Optionally attach a registration photo.
     """
-    with transaction.atomic():
+    try:
+      with transaction.atomic():
+        # You could re-check here too if you wanted...
         user = User.objects.create_user(
-            idnumber=idnumber,
-            username=username,
-            password=password,
-            email=email,
-            phone=phone,
-            first_name=first_name,
-            last_name=last_name,
-            role="beneficiary",
+          idnumber=idnumber,
+          username=username,
+          password=password,
+          email=email,
+          phone=phone,
+          first_name=first_name,
+          last_name=last_name,
+          role="beneficiary",
         )
-        # current_balance defaults to 0.00
-        user.save()
-
+        # profile gets auto-created via post_save signal
         if face_photo_file:
-            UserPhoto.objects.create(
-                user=user,
-                photo=face_photo_file,
-                photo_type="registration",
-            )
+          UserPhoto.objects.create(
+            user=user,
+            photo=face_photo_file,
+            photo_type="registration",
+          )
         return user
+
+    except IntegrityError as e:
+      # wrap DB errors in a ValidationError so the view can treat them uniformly
+      raise ValidationError("A user with your username, ID number, or email already exists.")
 
 
 def create_admin_user(
