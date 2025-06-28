@@ -309,7 +309,7 @@ class DonorWebRegisterView(View):
         # -- New check: require face photo --
         if face_photo is None:
           messages.error(request, "Please upload or capture a face photo.")
-          return redirect(reverse("web_beneficiary_register"))
+          return redirect(reverse("web_donor_register"))
 
         # 4) attempt creation
         try:
