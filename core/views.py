@@ -1009,10 +1009,9 @@ def admin_donor_update(request, donor_id):
     else:
         return HttpResponseBadRequest("Invalid method.")
 
-
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
-@method_decorator(csrf_exempt, name="dispatch")
 def admin_donor_delete(request, donor_id):
     """
     POST: Deletes the donor. Return {"success": true} on success.
@@ -1098,9 +1097,9 @@ def admin_beneficiaries_update(request, beneficiaryId):
     else:
         return HttpResponseBadRequest("Invalid method.")
 
+@csrf_exempt
 @login_required
 @user_passes_test(is_admin)
-@method_decorator(csrf_exempt, name="dispatch")
 def admin_beneficiaries_delete(request, beneficiaryId):
     """
     POST: Deletes the donor. Return {"success": true} on success.
