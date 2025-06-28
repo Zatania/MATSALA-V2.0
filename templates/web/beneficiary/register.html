@@ -46,6 +46,7 @@
         const url = URL.createObjectURL(fileInput.files[0]);
         previewImg.src = url;
         previewImg.classList.remove('d-none');
+        btnSubmit.disabled = false;
       });
 
       // open camera modal
@@ -95,6 +96,7 @@
           // show preview
           previewImg.src = URL.createObjectURL(blob);
           previewImg.classList.remove('d-none');
+          btnSubmit.disabled = false;
         }, 'image/png');
 
         modalEl.hide();
@@ -190,7 +192,7 @@
             <label class="form-label">Face Photo</label>
             <div class="d-flex gap-2">
               <!-- hidden file input we’ll populate from JS -->
-              <input type="file" id="face_photo" name="face_photo" accept="image/*" class="d-none">
+              <input type="file" id="face_photo" name="face_photo" accept="image/*" class="d-none" required>
               <!-- button to open camera modal -->
               <button type="button" class="btn btn-outline-primary" id="btnOpenCamera">
                 <i class="ri-camera-line"></i> Capture from Camera
@@ -205,17 +207,7 @@
               <img id="photoPreview" src="#" alt="Preview" class="img-fluid rounded d-none" style="max-height: 200px;">
             </div>
           </div>
-
-{#          <div class="mb-5">#}
-{#            <div class="form-check mt-2">#}
-{#              <input class="form-check-input" type="checkbox" id="terms-conditions" name="terms">#}
-{#              <label class="form-check-label" for="terms-conditions">#}
-{#                I agree to#}
-{#                <a href="javascript:void(0);">privacy policy & terms</a>#}
-{#              </label>#}
-{#            </div>#}
-{#          </div>#}
-          <button id="btnSubmit" class="btn btn-primary w-100" type="submit">
+          <button id="btnSubmit" class="btn btn-primary w-100" type="submit" disabled>
             <span id="btnText" class="me-1">Sign up</span>
             <span id="btnLoader" class="spinner-border spinner-border-sm visually-hidden" role="status" aria-hidden="true"></span>
           </button>
