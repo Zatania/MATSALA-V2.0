@@ -544,6 +544,11 @@ class BeneficiaryWebRegisterView(View):
     last_name = data.get("last_name", "").strip()
     face_photo = request.FILES.get("face_photo")
 
+    # -- New check: require face photo --
+    if face_photo is None:
+      messages.error(request, "Please upload or capture a face photo.")
+      return redirect(reverse("web_beneficiary_register"))
+
     # 4) attempt creation
     try:
       beneficiary = create_beneficiary(
