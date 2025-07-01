@@ -1,34 +1,95 @@
-<footer class="content-footer footer bg-footer-theme">
-  <div class="{{ container_class }}">
-    <div class="footer-container d-flex align-items-center justify-content-between py-4 flex-md-row flex-column">
-      <div class="text-body mb-2 mb-md-0">
-        ©<script>document.write(new Date().getFullYear());</script>
-        {% get_theme_variables 'creator_name' %}
-      </div>
-      <div class="d-none d-lg-inline-block">
-        <a href="#"
-           class="footer-link me-4"
-           data-bs-toggle="modal"
-           data-bs-target="#privacyModalFooter">
-          Privacy Policy
-        </a>
-        <a href="#"
-           class="footer-link me-4"
-           data-bs-toggle="modal"
-           data-bs-target="#termsModalFooter">
-          Terms and Conditions
-        </a>
-      </div>
-    </div>
-  </div>
-</footer>
+{% extends layout_path %}
 
-{# Privacy Policy Modal (Footer) #}
-<div class="modal fade" id="privacyModalFooter" tabindex="-1" aria-labelledby="privacyModalFooterLabel" aria-hidden="true">
+{% load static %}
+{% load i18n %}
+
+{% block title %}Login Basic - Pages{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/@form-validation/form-validation.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/@form-validation/popular.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/bootstrap5.js' %}"></script>
+<script src="{% static 'vendor/libs/@form-validation/auto-focus.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/pages-auth.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<div class="authentication-wrapper authentication-basic container-p-y">
+  <div class="authentication-inner d-flex justify-content-center align-items-start py-6">
+
+    <div class="w-100 text-center" style="max-width: 600px;">
+
+      <!-- Logo -->
+      <div class="mb-4 mt-4">
+        <img
+          src="{% static 'img/branding/logo.png' %}"
+          alt="MATSALA logo"
+          width="120"
+          style="height:auto;"
+        />
+      </div>
+
+      <!-- Headline -->
+      <h4 class="mb-1">Welcome to</h4>
+      <h4 class="mb-5">MATSALA Assistance Portal</h4>
+      <p class="mb-4">Please select your access type:</p>
+
+      <!-- Buttons -->
+      <div class="d-grid gap-4">
+        <a href="{% url 'web_beneficiary_login' %}" class="btn btn-primary btn-lg">
+          Beneficiary Login
+        </a>
+        <a href="{% url 'web_donor_choice' %}" class="btn btn-success btn-lg">
+          Donor Login
+        </a>
+        <a href="{% url 'admin_login' %}" class="btn btn-danger btn-lg">
+          Admin Login
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <div class="mt-5">
+        <small class="text-muted">
+          By using this service, you agree to our
+          <a href="#"
+             data-bs-toggle="modal"
+             data-bs-target="#privacyModal">
+            Privacy Policy
+          </a>
+          and
+          <a href="#"
+             data-bs-toggle="modal"
+             data-bs-target="#termsModal">
+            Terms and Conditions
+          </a>.
+        </small>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+{# Privacy Policy Modal #}
+<div class="modal fade" id="privacyModal" tabindex="-1" aria-labelledby="privacyModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="privacyModalFooterLabel">Privacy Policy</h5>
+        <h5 class="modal-title" id="privacyModalLabel">Privacy Policy</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body text-start">
@@ -47,6 +108,7 @@
           <li>Optional: Donor name and GCash reference number</li>
         </ul>
         <h6>3. How We Use Your Data</h6>
+        <p>We use your data to:</p>
         <ul>
           <li>Create secure accounts</li>
           <li>Authenticate users via facial recognition</li>
@@ -77,12 +139,12 @@
   </div>
 </div>
 
-{# Terms and Conditions Modal (Footer) #}
-<div class="modal fade" id="termsModalFooter" tabindex="-1" aria-labelledby="termsModalFooterLabel" aria-hidden="true">
+{# Terms and Conditions Modal #}
+<div class="modal fade" id="termsModal" tabindex="-1" aria-labelledby="termsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="termsModalFooterLabel">Terms and Conditions</h5>
+        <h5 class="modal-title" id="termsModalLabel">Terms and Conditions</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body text-start">
@@ -130,3 +192,4 @@
     </div>
   </div>
 </div>
+{% endblock %}

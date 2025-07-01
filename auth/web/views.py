@@ -12,6 +12,6 @@ class WebView(View):
     elif request.user.is_authenticated and getattr(request.user, "role", None) == "donor":
       return redirect(reverse("web_donor_dashboard"))
 
-    return render(request, "web/web.html", {
+    return render(request, "web/web-new.html", {
       "layout_path": "layout/layout_blank.html"
     })
