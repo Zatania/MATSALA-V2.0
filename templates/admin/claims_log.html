@@ -40,6 +40,7 @@
             <th>Requested Amount</th>
             <th>GCash Number</th>
             <th>LandLord GCash Number</th>
+            <th>Purpose of Travel</th>
             <th>Status</th>
             <th>Partial?</th>
             <th>Proof</th>
@@ -66,7 +67,20 @@
             <td data-order="{{ claim.priority }}">{{ claim.priority }}</td>
             <td>₱ {{ claim.requested_amount }}</td>
             <td>{{ claim.user.phone }}</td>
-            <td>{{ claim.user.landlord_gcash_number }}</td>
+            <td>
+              {% if claim.need_type == 'rent' %}
+                {{ claim.user.landlord_gcash_number|default:"—" }}
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if claim.need_type == 'transport' %}
+                {{ claim.purpose_of_travel|default:"—" }}
+              {% else %}
+                <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
             <td class="claim-status-cell">
               {{ claim.status|title }}
               {% if claim.status == 'approved' and claim.gcash_payout_id %}
