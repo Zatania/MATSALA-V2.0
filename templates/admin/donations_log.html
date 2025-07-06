@@ -38,36 +38,62 @@
             <th>Donor Name</th>
             <th>Amount</th>
             <th>Method</th>
+            <th>Status</th>
+            <th>Coin Count</th>
+            <th>GCash Ref #</th>
             <th>Date</th>
             <th>Actions</th>
           </tr>
+
         </thead>
         <tbody>
           {% for donation in donations %}
-          <tr data-donation-id="{{ donation.id }}">
-            <td>
-              {% if donation.user %}
-                {{ donation.user.first_name }} {{ donation.user.last_name }}
-              {% else %}
-                Guest Donor
-              {% endif %}
-            </td>
-            <td>{{ donation.amount }}</td>
-            <td>{{ donation.method }}</td>
-            <td data-order="{{ donation.created_at|date:'Y-m-d H:i:s' }}">
-              {{ donation.created_at|date:"F j, Y g:i A" }}
-            </td>
-            <td class="donation-actions-cell">
-              {% if donation.status == 'pending' %}
-                <div class="btn-group" role="group">
-                  <button class="btn btn-sm btn-success approve-donation">Approve</button>
-                  <button class="btn btn-sm btn-danger reject-donation">Reject</button>
-                </div>
-              {% else %}
-                <span class="badge bg-label-secondary">No Actions</span>
-              {% endif %}
-            </td>
-          </tr>
+            <tr data-donation-id="{{ donation.id }}">
+                <td>
+                    {% if donation.user %}
+                        {{ donation.user.first_name }} {{ donation.user.last_name }}
+                    {% else %}
+                        Guest Donor
+                    {% endif %}
+                </td>
+                <td>{{ donation.amount }}</td>
+                <td>{{ donation.method|title }}</td>
+                <td>
+                    {% if donation.status == "pending" %}
+                        <span class="badge bg-warning">Pending</span>
+                    {% else %}
+                        <span class="badge bg-success">Confirmed</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if donation.method == "coin" %}
+                        {{ donation.coin_count }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if donation.method == "gcash" %}
+                        {{ donation.gcash_ref_number }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td data-order="{{ donation.created_at|date:'Y-m-d H:i:s' }}">
+                    {{ donation.created_at|date:"F j, Y g:i A" }}
+                </td>
+                <td class="donation-actions-cell">
+                    {% if donation.status == 'pending' %}
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-sm btn-success approve-donation">Approve</button>
+                            <button class="btn btn-sm btn-danger reject-donation">Reject</button>
+                        </div>
+                    {% else %}
+                        <span class="badge bg-label-secondary">No Actions</span>
+                    {% endif %}
+                </td>
+            </tr>
+
           {% endfor %}
         </tbody>
       </table>
