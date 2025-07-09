@@ -24,93 +24,187 @@
 
 {% block page_js %}
 {{ block.super }}
-<script src="{% static 'js/pages-auth.js' %}"></script>
- <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const btnOpen      = document.getElementById('btnOpenCamera');
-      const btnChoose    = document.getElementById('btnChooseFile');
-      const fileInput    = document.getElementById('face_photo');
-      const previewImg   = document.getElementById('photoPreview');
-      const modalEl      = new bootstrap.Modal(document.getElementById('cameraModal'));
-      const video        = document.getElementById('cameraStream');
-      const canvas       = document.getElementById('cameraCanvas');
-      const btnSnap      = document.getElementById('btnTakePhoto');
-      let stream;
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const form         = document.getElementById('formAuthentication');
+    const btnOpen      = document.getElementById('btnOpenCamera');
+    const btnChoose    = document.getElementById('btnChooseFile');
+    const fileInput    = document.getElementById('face_photo');
+    const previewImg   = document.getElementById('photoPreview');
+    const modalEl      = new bootstrap.Modal(document.getElementById('cameraModal'));
+    const video        = document.getElementById('cameraStream');
+    const canvas       = document.getElementById('cameraCanvas');
+    const btnSnap      = document.getElementById('btnTakePhoto');
+    const btnSubmit    = document.getElementById('btnSubmit');
+    let stream;
 
-      // open file picker fallback
-      btnChoose.addEventListener('click', () => fileInput.click());
+    //
+    // ——— Camera / File‑picker Logic —————————————————————————————————————————
+    //
+    btnChoose.addEventListener('click', () => fileInput.click());
 
-      // when user chooses file, show preview
-      fileInput.addEventListener('change', () => {
-        if (!fileInput.files?.length) return;
-        const url = URL.createObjectURL(fileInput.files[0]);
-        previewImg.src = url;
-        previewImg.classList.remove('d-none');
-        btnSubmit.disabled = false;
-      });
+    fileInput.addEventListener('change', () => {
+      if (!fileInput.files?.length) return;
+      previewImg.src = URL.createObjectURL(fileInput.files[0]);
+      previewImg.classList.remove('d-none');
+      btnSubmit.disabled = false;
+    });
 
-      // open camera modal
-      btnOpen.addEventListener('click', () => {
-        // (re-)clear any previous error
-        const errEl = document.querySelector('#cameraModal .camera-error');
-        if (errEl) errEl.remove();
+    btnOpen.addEventListener('click', () => {
+      // clear prior errors
+      const errEl = document.querySelector('#cameraModal .camera-error');
+      if (errEl) errEl.remove();
 
-        modalEl.show();
+      modalEl.show();
 
-        navigator.mediaDevices.getUserMedia({ video: true })
-          .then(s => {
-            stream = s;
-            video.srcObject = s;
-            btnSnap.disabled = false;           // enable snapshot
-          })
-          .catch(err => {
-            btnSnap.disabled = true;            // prevent snapshot
-            const body = document.querySelector('#cameraModal .modal-body');
-            const html = `
-              <p class="camera-error text-danger mt-2">
-                Cannot access camera: ${err.name}
-              </p>`;
-            body.insertAdjacentHTML('beforeend', html);
-          });
-      });
-
-      // take snapshot
-      btnSnap.addEventListener('click', () => {
-        // set canvas size to video size
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        // stop the camera
-        stream.getTracks().forEach((t) => t.stop());
-
-        // extract blob from canvas
-        canvas.toBlob((blob) => {
-          // create a File out of the blob
-          const photoFile = new File([blob], 'capture.png', { type: 'image/png' });
-          // put it into DataTransfer for the file input
-          const dt = new DataTransfer();
-          dt.items.add(photoFile);
-          fileInput.files = dt.files;
-
-          // show preview
-          previewImg.src = URL.createObjectURL(blob);
-          previewImg.classList.remove('d-none');
-          btnSubmit.disabled = false;
-        }, 'image/png');
-
-        modalEl.hide();
-      });
-
-      // cleanup stream if modal closed without snapping
-      document.getElementById('cameraModal')
-        .addEventListener('hidden.bs.modal', () => {
-          if (stream) {
-            stream.getTracks().forEach((t) => t.stop());
-          }
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(s => {
+          stream = s;
+          video.srcObject = s;
+          btnSnap.disabled = false;
+        })
+        .catch(err => {
+          btnSnap.disabled = true;
+          const body = document.querySelector('#cameraModal .modal-body');
+          body.insertAdjacentHTML('beforeend', `
+            <p class="camera-error text-danger mt-2">
+              Cannot access camera: ${err.name}
+            </p>`);
         });
     });
-  </script>
+
+    btnSnap.addEventListener('click', () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      stream.getTracks().forEach(t => t.stop());
+
+      canvas.toBlob(blob => {
+        const photoFile = new File([blob], 'capture.png', { type: 'image/png' });
+        const dt = new DataTransfer();
+        dt.items.add(photoFile);
+        fileInput.files = dt.files;
+
+        previewImg.src = URL.createObjectURL(blob);
+        previewImg.classList.remove('d-none');
+        btnSubmit.disabled = false;
+      }, 'image/png');
+
+      modalEl.hide();
+    });
+
+    document.getElementById('cameraModal')
+      .addEventListener('hidden.bs.modal', () => {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+      });
+
+    //
+    // ——— FormValidation Initialization ————————————————————————————————————
+    //
+    FormValidation.formValidation(form, {
+      fields: {
+        username: {
+          validators: {
+            notEmpty:  { message: 'Username is required' },
+            stringLength: {
+              max: 25,
+              message: 'Username must be at most 25 characters'
+            }
+          }
+        },
+        idnumber: {
+          validators: {
+            notEmpty:  { message: 'ID Number is required' },
+            stringLength: {
+              min: 12,
+              max: 12,
+              message: 'ID Number must be exactly 12 characters'
+            },
+            regexp: {
+              regexp: /^[A-Za-z0-9]+$/,
+              message: 'ID Number can only contain letters and digits'
+            }
+          }
+        },
+        phone: {
+          validators: {
+            notEmpty: { message: 'GCash phone number is required' },
+            regexp: {
+              regexp: /^09\d{9}$/,
+              message: 'Phone must be 11 digits and start with 09'
+            }
+          }
+        },
+        email: {
+          validators: {
+            notEmpty:     { message: 'Email is required' },
+            emailAddress: { message: 'Please enter a valid email' },
+            regexp: {
+              regexp: /^[^@]+@(gmail|yahoo)\.com$/,
+              message: 'Only gmail.com or yahoo.com addresses are allowed'
+            }
+          }
+        },
+        first_name: {
+          validators: {
+            notEmpty: { message: 'First name is required' },
+            stringLength: {
+              max: 25,
+              message: 'First name must be at most 25 characters'
+            }
+          }
+        },
+        last_name: {
+          validators: {
+            notEmpty: { message: 'Last name is required' },
+            stringLength: {
+              max: 25,
+              message: 'Last name must be at most 25 characters'
+            }
+          }
+        },
+        password: {
+          validators: {
+            notEmpty: { message: 'Password is required' },
+            stringLength: {
+              min: 8,
+              message: 'Password must be at least 8 characters'
+            }
+          }
+        },
+        confirm_password: {
+          validators: {
+            notEmpty: { message: 'Please confirm your password' },
+            identical: {
+              compare: () => form.querySelector('[name="password"]').value,
+              message: 'Passwords do not match'
+            }
+          }
+        },
+        face_photo: {
+          validators: {
+            notEmpty: { message: 'Face photo is required' },
+            file: {
+              extension: 'jpg,jpeg,png',
+              type: 'image/jpeg,image/png',
+              message: 'Please upload a JPG or PNG image'
+            }
+          }
+        }
+      },
+      plugins: {
+        trigger:     new FormValidation.plugins.Trigger(),
+        bootstrap:   new FormValidation.plugins.Bootstrap5({
+          rowSelector:      '.form-floating, .mb-5',
+          eleInvalidClass: '',
+          eleValidClass:   ''
+        }),
+        submitButton: new FormValidation.plugins.SubmitButton(),
+        autoFocus:    new FormValidation.plugins.AutoFocus()
+      }
+    });
+  });
+</script>
 {% endblock page_js %}
 
 {% block content %}
