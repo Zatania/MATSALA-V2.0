@@ -25,6 +25,103 @@
 {% block page_js %}
 {{ block.super }}
 <script src="{% static 'js/pages-auth.js' %}"></script>
+<script>
+// Initialize FormValidation on our form
+document.addEventListener('DOMContentLoaded', function (e) {
+  const form = document.getElementById('formAuthentication');
+  FormValidation.formValidation(form, {
+    fields: {
+      username: {
+        validators: {
+          notEmpty: { message: 'Username is required' },
+          stringLength: {
+            max: 25,
+            message: 'Username must be at most 25 characters'
+          }
+        }
+      },
+      email: {
+        validators: {
+          notEmpty: { message: 'Email is required' },
+          emailAddress: { message: 'Please enter a valid email' },
+          regexp: {
+            regexp: /^[^@]+@(gmail|yahoo)\.com$/,
+            message: 'Only gmail.com or yahoo.com addresses are allowed'
+          }
+        }
+      },
+      phone: {
+        validators: {
+          notEmpty: { message: 'GCash phone number is required' },
+          regexp: {
+            // starts with 09 and then 9 digits (total 11)
+            regexp: /^09\d{9}$/,
+            message: 'Phone must be 11 digits and start with 09'
+          }
+        }
+      },
+      first_name: {
+        validators: {
+          notEmpty: { message: 'First name is required' },
+          stringLength: {
+            max: 25,
+            message: 'First name must be at most 25 characters'
+          }
+        }
+      },
+      last_name: {
+        validators: {
+          notEmpty: { message: 'Last name is required' },
+          stringLength: {
+            max: 25,
+            message: 'Last name must be at most 25 characters'
+          }
+        }
+      },
+      password: {
+        validators: {
+          notEmpty: { message: 'Password is required' },
+          stringLength: {
+            min: 8,
+            message: 'Password must be at least 8 characters'
+          }
+        }
+      },
+      confirm_password: {
+        validators: {
+          notEmpty: { message: 'Please confirm your password' },
+          identical: {
+            compare: function() {
+              return form.querySelector('[name="password"]').value;
+            },
+            message: 'Passwords do not match'
+          }
+        }
+      },
+      face_photo: {
+        validators: {
+          notEmpty: { message: 'Face photo is required' },
+          file: {
+            extension: 'jpg,jpeg,png',
+            type: 'image/jpeg,image/png',
+            message: 'Please upload a JPG or PNG image'
+          }
+        }
+      }
+    },
+    plugins: {
+      trigger: new FormValidation.plugins.Trigger(),
+      bootstrap: new FormValidation.plugins.Bootstrap5({
+        rowSelector: '.form-floating, .mb-5',
+        eleInvalidClass: '',
+        eleValidClass: ''
+      }),
+      submitButton: new FormValidation.plugins.SubmitButton(),
+      autoFocus: new FormValidation.plugins.AutoFocus()
+    }
+  });
+});
+</script>
 {% endblock page_js %}
 
 {% block content %}
