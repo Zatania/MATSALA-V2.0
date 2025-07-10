@@ -112,17 +112,18 @@
             }
           }
         },
-        idnumber: {
+       idnumber: {
           validators: {
-            notEmpty:  { message: 'ID Number is required' },
+            notEmpty: { message: 'ID Number is required' },
             stringLength: {
-              min: 12,
-              max: 12,
-              message: 'ID Number must be exactly 12 characters'
+              min: 15,
+              max: 15,
+              message: 'ID Number must be 15 characters: YYYY-00000-MQ-0'
             },
             regexp: {
-              regexp: /^[A-Za-z0-9]+$/,
-              message: 'ID Number can only contain letters and digits'
+              // 4 digits (year), dash, 5 digits, dash, "MQ", dash, 1 digit
+              regexp: /^[0-9]{4}-\d{5}-MQ-[0-9]$/,
+              message: 'ID Number must follow the format YYYY-00000-MQ-0'
             }
           }
         },
